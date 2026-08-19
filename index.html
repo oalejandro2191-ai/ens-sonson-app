@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0d5f3b" />
+  <title>ENS Sonsón · English Lab</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/escudo.png" alt="Escudo Escuela Normal Superior Presbítero José Gómez Isaza" />
+        <div><strong>ENS Sonsón</strong><span>English Lab</span></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="home">Inicio</button>
+        <button class="nav-item" data-view="collections">Aprender</button>
+        <button class="nav-item" data-view="lesson">Lección</button>
+      </nav>
+      <div class="sidebar-note">
+        <span>Identidad institucional</span>
+        <strong>Verde · Blanco · Amarillo</strong>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">Plataforma de aprendizaje</span>
+          <h1 id="page-title">Inicio</h1>
+        </div>
+        <div class="status-pill"><span class="dot"></span> Datos reales de Supabase</div>
+      </header>
+
+      <section id="home" class="view active">
+        <div class="hero">
+          <div class="hero-copy">
+            <span class="hero-kicker">INGLÉS PARA APRENDER HACIENDO</span>
+            <h2>Una experiencia moderna, clara y hecha para la Normal.</h2>
+            <p>Lecciones cortas, vocabulario real, progreso visible y una identidad visual propia.</p>
+            <button class="primary" id="start-learning">Comenzar a aprender</button>
+          </div>
+          <div class="hero-crest"><img src="assets/escudo.png" alt="Escudo institucional" /></div>
+        </div>
+
+        <div class="metrics">
+          <article><strong>531</strong><span>unidades de aprendizaje</span></article>
+          <article><strong>13</strong><span>colecciones reales</span></article>
+          <article><strong>3</strong><span>fases de práctica inicial</span></article>
+        </div>
+
+        <div class="section-head"><div><span>RUTA</span><h3>Cómo aprenderás</h3></div></div>
+        <div class="steps">
+          <article><b>1</b><strong>Descubrir</strong><span>Palabra, significado y ejemplo.</span></article>
+          <article><b>2</b><strong>Reconocer</strong><span>Selecciona la traducción correcta.</span></article>
+          <article><b>3</b><strong>Recordar</strong><span>Escribe la palabra sin verla.</span></article>
+        </div>
+      </section>
+
+      <section id="collections" class="view">
+        <div class="section-head"><div><span>COLECCIONES</span><h3>Vocabulario real de Supabase</h3></div><button class="ghost" id="reload">Actualizar</button></div>
+        <div id="collections-grid" class="collection-grid"><div class="loading">Cargando colecciones…</div></div>
+      </section>
+
+      <section id="lesson" class="view">
+        <div class="lesson-wrap">
+          <div class="lesson-header">
+            <div><span id="lesson-kicker">LECCIÓN</span><h3 id="lesson-title">Selecciona una colección</h3></div>
+            <div class="progress-wrap"><span id="progress-label">0 / 0</span><div class="progress"><i id="progress-bar"></i></div></div>
+          </div>
+          <div id="lesson-card" class="lesson-card empty">
+            <img src="assets/escudo.png" alt="Escudo" />
+            <h4>Elige una colección para empezar.</h4>
+            <p>La primera lección tomará hasta 6 palabras reales de Supabase.</p>
+            <button class="primary" data-go="collections">Ver colecciones</button>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div class="footer-brand"><img src="assets/escudo.png" alt="Escudo" /><span>Escuela Normal Superior Presbítero José Gómez Isaza</span></div>
+        <div class="creator"><img src="assets/firma-oag.png" alt="Firma OAG" /><span>Creado por <strong>Oscar Alejandro Gil Valencia</strong></span></div>
+      </footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
