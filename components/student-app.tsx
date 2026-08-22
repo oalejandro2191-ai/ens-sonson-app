@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   BookOpen,
@@ -43,6 +44,76 @@ type IdentityView = {
   group: string | null;
 };
 
+type Dashboard = {
+  display_alias: string | null;
+  group: { id: string; name: string; grade: string | null; section: string | null; academic_year: string | null } | null;
+  route: { code: string; lesson_count: number; completed: number; mastered: number; traversed_percentage: number; mastery_percentage: number };
+  current_lesson: { id: string; position: number; title: string; purpose: string | null; state: string } | null;
+  streak: number;
+  xp: number;
+  credits: number;
+  due_review_words: number;
+};
+
+type RouteProgress = {
+  route_code: string;
+  lessons: Array<{
+    lesson_id: string;
+    position: number;
+    status: string;
+    mastery_status: string;
+    last_percentage: number;
+    best_percentage: number;
+    can_open: boolean;
+  }>;
+};
+
+type WordStates = { mastered: number; learning: number; review: number; new: number };
+
+type LessonTask = {
+  word_id: string;
+  lesson_unit_position: number;
+  activity_type: "association" | "listening" | "writing" | "recall";
+  activity_position: number;
+  english: string;
+  spanish: string;
+  example_en: string;
+  example_es: string;
+  audio_path: string | null;
+};
+
+type ConfirmedAttempt = {
+  attempt_id: number;
+  word_id: string;
+  activity_type: LessonTask["activity_type"];
+  client_event_id: string | null;
+  correct: boolean;
+  answered_at?: string;
+};
+
+type ActiveSession = {
+  session_id: string;
+  client_session_id: string;
+  status: string;
+  route_code: string;
+  lesson: { id: string; title: string; purpose: string | null; unit_count: number };
+  expected_count: number;
+  confirmed_count: number;
+  tasks: LessonTask[];
+  attempts: ConfirmedAttempt[];
+};
+
+type LessonResult = {
+  correct: number;
+  total: number;
+  percentage: number;
+  mastered: boolean;
+  xp: number;
+  coins: number;
+};
+
+const routeCode = process.env.NEXT_PUBLIC_ENS_ROUTE_CODE ?? "A1-V3";
+
 const navigation: Array<{ key: StudentSection; label: string; icon: typeof Home }> = [
   { key: "inicio", label: "Inicio", icon: Home },
   { key: "aprender", label: "Aprender", icon: BookOpen },
@@ -62,6 +133,10 @@ function roleLabel(role: string | null) {
   if (role === "student") return "Estudiante";
   if (role === "superadmin") return "Superadministrador";
   return "No disponible";
+}
+
+function taskKey(task: Pick<LessonTask, "word_id" | "activity_type">) {
+  return `${task.word_id}:${task.activity_type}`;
 }
 
 function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSignedIn: () => Promise<void> }) {
@@ -87,10 +162,7 @@ function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSign
   return (
     <main className="login-page" data-testid="login-page">
       <section className="panel login-card">
-        <div className="brand login-brand">
-          <div className="brand-mark" aria-hidden="true"><GraduationCap size={26} /></div>
-          <div><strong>ENS English</strong><span>Supabase local</span></div>
-        </div>
+        <div className="brand login-brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={26} /></div><div><strong>ENS English</strong><span>Supabase local</span></div></div>
         <span className="eyebrow">ACCESO INSTITUCIONAL</span>
         <h1>Iniciar sesión</h1>
         <p>La sesión y la identidad se validan en el backend local.</p>
@@ -106,8 +178,8 @@ function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSign
   );
 }
 
-function EmptyPanel({ title }: { title: string }) {
-  return <section className="panel empty-state"><span className="eyebrow">BACKEND LOCAL</span><h2>{title}</h2><p>Sin progreso registrado para mostrar en este checkpoint.</p></section>;
+function EmptyPanel({ title, detail = "Sin progreso registrado" }: { title: string; detail?: string }) {
+  return <section className="panel empty-state"><span className="eyebrow">BACKEND LOCAL</span><h2>{title}</h2><p>{detail}</p></section>;
 }
 
 function IdentityPanel({ identity }: { identity: IdentityView }) {
@@ -125,6 +197,202 @@ function IdentityPanel({ identity }: { identity: IdentityView }) {
   );
 }
 
+function DashboardPanel({ dashboard, states }: { dashboard: Dashboard; states: WordStates }) {
+  return (
+    <div data-testid="student-dashboard">
+      <section className="hero panel">
+        <div>
+          <span className="eyebrow">PROGRESO ACADÉMICO REAL</span>
+          <h2>{dashboard.display_alias ?? "No disponible"}</h2>
+          <p>{dashboard.group ? `${dashboard.group.grade ?? "Grado pendiente"} · ${dashboard.group.name}` : "Pendiente de asignación"}</p>
+        </div>
+        <div className="metric-placeholder"><span>PALABRAS DOMINADAS</span><strong data-testid="metric-mastered">{states.mastered}</strong><small>Estado actual en Supabase</small></div>
+      </section>
+      <section className="metric-grid">
+        <article className="panel metric-card"><span>En aprendizaje</span><strong data-testid="metric-learning">{states.learning}</strong></article>
+        <article className="panel metric-card"><span>En revisión</span><strong data-testid="metric-review">{states.review}</strong></article>
+        <article className="panel metric-card"><span>Revisiones vencidas</span><strong data-testid="metric-due">{dashboard.due_review_words}</strong></article>
+        <article className="panel metric-card"><span>Ruta completada</span><strong>{dashboard.route.traversed_percentage}%</strong></article>
+      </section>
+      <section className="panel route-card">
+        <div><span className="eyebrow">RUTA {dashboard.route.code}</span><h3>{dashboard.current_lesson?.title ?? "Sin lección pendiente"}</h3><p>{dashboard.current_lesson?.purpose ?? "Sin progreso registrado"}</p></div>
+        {dashboard.current_lesson ? <Link className="primary-button" data-testid="continue-lesson" href="/estudiante/aprender">Continuar lección</Link> : null}
+      </section>
+      <section className="secondary-stats" aria-label="Datos motivacionales secundarios">
+        <span>Racha: {dashboard.streak}</span><span>XP: {dashboard.xp}</span><span>Monedas: {dashboard.credits}</span>
+      </section>
+    </div>
+  );
+}
+
+function ProgressPanel({ progress }: { progress: RouteProgress }) {
+  return (
+    <section className="panel progress-panel" data-testid="route-progress">
+      <span className="eyebrow">PROGRESO DE RUTA {progress.route_code}</span>
+      <div className="lesson-list">
+        {progress.lessons.length === 0 ? <p>Sin progreso registrado</p> : progress.lessons.map((lesson) => (
+          <article key={lesson.lesson_id} className="lesson-row"><strong>Lección {lesson.position}</strong><span>{lesson.status}</span><span>{lesson.best_percentage}%</span></article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function promptFor(task: LessonTask) {
+  if (task.activity_type === "association") return `¿Qué significa “${task.english}”?`;
+  if (task.activity_type === "listening") return `Escriba la palabra en inglés: ${task.spanish}`;
+  if (task.activity_type === "writing") return `Escriba en inglés: ${task.spanish}`;
+  return `Recuerde y escriba en inglés: ${task.spanish}`;
+}
+
+function LessonPanel({
+  supabase,
+  dashboard,
+  onAcademicChange,
+}: {
+  supabase: SupabaseClient;
+  dashboard: Dashboard;
+  onAcademicChange: () => Promise<void>;
+}) {
+  const router = useRouter();
+  const [session, setSession] = useState<ActiveSession | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState<{ correct: boolean; replay: boolean } | null>(null);
+  const [omitted, setOmitted] = useState<Set<string>>(() => new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<LessonResult | null>(null);
+
+  const confirmed = useMemo(() => new Set((session?.attempts ?? []).map(taskKey)), [session]);
+  const currentTask = session?.tasks.find((task) => !confirmed.has(taskKey(task)) && !omitted.has(taskKey(task))) ?? null;
+  const pendingOmitted = session?.tasks.filter((task) => !confirmed.has(taskKey(task)) && omitted.has(taskKey(task))) ?? [];
+  const allConfirmed = Boolean(session && confirmed.size === session.tasks.length);
+
+  async function hydrateActive() {
+    const active = await supabase.rpc("get_my_active_route_session_v1", { target_route_code: routeCode });
+    if (active.error) throw active.error;
+    setSession((active.data as ActiveSession | null) ?? null);
+    return active.data as ActiveSession | null;
+  }
+
+  async function startOrRecover() {
+    setError(null);
+    setResult(null);
+    try {
+      const existing = await hydrateActive();
+      if (existing) return;
+      if (!dashboard.current_lesson) throw new Error("No hay una lección disponible para iniciar.");
+      const clientSessionId = `web_${crypto.randomUUID().replaceAll("-", "")}`;
+      const started = await supabase.rpc("start_route_lesson_session_v1", {
+        target_route_code: routeCode,
+        target_lesson_id: dashboard.current_lesson.id,
+        provided_client_session_id: clientSessionId,
+        provided_client_context: { client: "studentapp-local" },
+      });
+      if (started.error) throw started.error;
+      await hydrateActive();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No fue posible iniciar la lección.");
+    }
+  }
+
+  async function submitAnswer() {
+    if (!session || !currentTask || sending) return;
+    const eventId = `lesson:${session.session_id}:${currentTask.word_id}:${currentTask.activity_type}`;
+    setSending(true);
+    setError(null);
+    setFeedback(null);
+    const response = await supabase.rpc("record_route_lesson_attempt_v1", {
+      target_session_id: session.session_id,
+      target_word_id: currentTask.word_id,
+      target_activity_type: currentTask.activity_type,
+      provided_answer: answer,
+      provided_response_time_ms: 1500,
+      provided_client_event_id: eventId,
+      provided_attempt_number: 1,
+    });
+    if (response.error) {
+      setError(response.error.message);
+      setSending(false);
+      return;
+    }
+    const payload = response.data as { attempt_id: number; correct: boolean; idempotent_replay: boolean };
+    setSession((previous) => previous ? {
+      ...previous,
+      confirmed_count: previous.attempts.some((item) => item.client_event_id === eventId) ? previous.confirmed_count : previous.confirmed_count + 1,
+      attempts: previous.attempts.some((item) => item.client_event_id === eventId) ? previous.attempts : [...previous.attempts, {
+        attempt_id: payload.attempt_id,
+        word_id: currentTask.word_id,
+        activity_type: currentTask.activity_type,
+        client_event_id: eventId,
+        correct: payload.correct,
+      }],
+    } : previous);
+    setFeedback({ correct: payload.correct, replay: payload.idempotent_replay });
+    setAnswer("");
+    setSending(false);
+  }
+
+  function skipCurrent() {
+    if (!currentTask) return;
+    setOmitted((previous) => new Set(previous).add(taskKey(currentTask)));
+    setAnswer("");
+    setFeedback(null);
+  }
+
+  async function complete() {
+    if (!session || !allConfirmed || sending) return;
+    setSending(true);
+    setError(null);
+    const completed = await supabase.rpc("complete_route_lesson_session_v1", { target_session_id: session.session_id });
+    if (completed.error) {
+      setError(completed.error.message);
+      setSending(false);
+      return;
+    }
+    setResult(completed.data as LessonResult);
+    setSession(null);
+    setOmitted(new Set());
+    await onAcademicChange();
+    setSending(false);
+  }
+
+  if (result) {
+    return <section className="panel lesson-result" data-testid="lesson-result"><span className="eyebrow">RESULTADO DEL SERVIDOR</span><h2>{result.correct}/{result.total}</h2><p>{result.percentage}% · {result.mastered ? "Lección dominada" : "Necesita repaso"}</p><button className="primary-button" type="button" onClick={() => router.push("/estudiante")}>Volver al dashboard</button></section>;
+  }
+
+  if (!session) {
+    return <section className="panel lesson-start" data-testid="lesson-start"><span className="eyebrow">LECCIÓN REAL</span><h2>{dashboard.current_lesson?.title ?? "Sin lección pendiente"}</h2><p>La sesión se inicia o recupera desde Supabase. El navegador no calcula dominio ni recompensas.</p>{error ? <div className="form-error">{error}</div> : null}{dashboard.current_lesson ? <button data-testid="start-lesson" className="primary-button" type="button" onClick={startOrRecover}>Iniciar o recuperar</button> : null}</section>;
+  }
+
+  if (allConfirmed) {
+    return <section className="panel lesson-finish" data-testid="lesson-finish"><span className="eyebrow">TODAS LAS ACTIVIDADES CONFIRMADAS</span><h2>Listo para finalizar</h2><p>{session.confirmed_count}/{session.expected_count} respuestas confirmadas por servidor.</p><button data-testid="complete-lesson" className="primary-button" type="button" disabled={sending} onClick={complete}>{sending ? "Finalizando…" : "Finalizar lección"}</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir sin finalizar</button></section>;
+  }
+
+  if (!currentTask && pendingOmitted.length > 0) {
+    return <section className="panel lesson-finish"><span className="eyebrow">ACTIVIDADES OMITIDAS PENDIENTES</span><h2>La lección aún no puede finalizar</h2><p>Omitir no crea intento ni error. Estas {pendingOmitted.length} actividades siguen pendientes.</p><button className="primary-button" type="button" onClick={() => setOmitted(new Set())}>Retomar omitidas</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir</button></section>;
+  }
+
+  if (!currentTask) return <EmptyPanel title="No hay actividad disponible" />;
+
+  return (
+    <section className="panel practice-card" data-testid="practice-card">
+      <div className="practice-meta"><span>Lección: {session.lesson.title}</span><span>{session.confirmed_count + 1}/{session.expected_count}</span></div>
+      <span className="eyebrow">{currentTask.activity_type.toUpperCase()}</span>
+      <h2>{promptFor(currentTask)}</h2>
+      <p className="example-line">{currentTask.example_en}</p>
+      <input data-testid="lesson-answer" className="answer-input" value={answer} onChange={(event) => setAnswer(event.target.value)} disabled={sending} placeholder="Escriba su respuesta" />
+      {feedback ? <div className={`server-feedback ${feedback.correct ? "correct" : "incorrect"}`}>{feedback.correct ? "Correcto" : "Incorrecto"}{feedback.replay ? " · respuesta recuperada" : ""}</div> : null}
+      {error ? <div className="form-error">{error}</div> : null}
+      <div className="practice-actions">
+        <button data-testid="submit-answer" className="primary-button" type="button" disabled={sending || answer.trim().length === 0} onClick={submitAnswer}>{sending ? "Validando…" : "Responder"}</button>
+        <button data-testid="skip-activity" className="secondary-button" type="button" disabled={sending} onClick={skipCurrent}>Omitir</button>
+        <button data-testid="exit-lesson" className="secondary-button" type="button" disabled={sending} onClick={() => router.push("/estudiante")}>Salir</button>
+      </div>
+    </section>
+  );
+}
+
 export function StudentApp({ section }: { section: string[] }) {
   const active = resolveStudentSection(section);
   const supabase = useMemo(() => getBrowserSupabase(), []);
@@ -132,7 +400,30 @@ export function StudentApp({ section }: { section: string[] }) {
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [identity, setIdentity] = useState<IdentityView | null>(null);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [routeProgress, setRouteProgress] = useState<RouteProgress | null>(null);
+  const [wordStates, setWordStates] = useState<WordStates>({ mastered: 0, learning: 0, review: 0, new: 0 });
   const [error, setError] = useState<string | null>(null);
+
+  const loadStudentData = useCallback(async () => {
+    if (!supabase) return;
+    const [dashboardResult, routeResult, wordResult] = await Promise.all([
+      supabase.rpc("get_my_learning_dashboard_v1", { target_route_code: routeCode }),
+      supabase.rpc("get_my_route_progress_v1", { target_route_code: routeCode }),
+      supabase.from("student_word_progress").select("mastery_state"),
+    ]);
+    if (dashboardResult.error || routeResult.error || wordResult.error) {
+      throw dashboardResult.error ?? routeResult.error ?? wordResult.error ?? new Error("No se pudo cargar el progreso.");
+    }
+    const states: WordStates = { mastered: 0, learning: 0, review: 0, new: 0 };
+    for (const row of wordResult.data ?? []) {
+      const state = String((row as { mastery_state: string }).mastery_state) as keyof WordStates;
+      if (state in states) states[state] += 1;
+    }
+    setDashboard(dashboardResult.data as Dashboard);
+    setRouteProgress(routeResult.data as RouteProgress);
+    setWordStates(states);
+  }, [supabase]);
 
   const loadIdentity = useCallback(async () => {
     if (!supabase) return;
@@ -143,6 +434,8 @@ export function StudentApp({ section }: { section: string[] }) {
     setSignedIn(hasSession);
     if (!hasSession) {
       setIdentity(null);
+      setDashboard(null);
+      setRouteProgress(null);
       setLoading(false);
       setReady(true);
       return;
@@ -169,7 +462,6 @@ export function StudentApp({ section }: { section: string[] }) {
       const schoolResult = await supabase.from("schools").select("name").eq("id", portal.school_id).maybeSingle();
       if (!schoolResult.error && schoolResult.data) institution = String((schoolResult.data as { name: string }).name);
     }
-
     if (portal.institution_role === "student") {
       const membershipResult = await supabase.from("group_members").select("group_id").eq("student_id", portal.user_id).eq("status", "active").limit(1).maybeSingle();
       if (!membershipResult.error && membershipResult.data) {
@@ -183,26 +475,29 @@ export function StudentApp({ section }: { section: string[] }) {
     }
 
     setIdentity({ auth, portal, institution, grade, group });
+    if (portal.institution_role === "student") {
+      try { await loadStudentData(); } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo cargar el progreso."); }
+    } else {
+      setDashboard(null);
+      setRouteProgress(null);
+    }
     setLoading(false);
     setReady(true);
-  }, [supabase]);
+  }, [loadStudentData, supabase]);
 
   useEffect(() => {
     if (!supabase) return;
     const initialTimer = window.setTimeout(() => { void loadIdentity(); }, 0);
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      window.setTimeout(() => { void loadIdentity(); }, 0);
-    });
-    return () => {
-      window.clearTimeout(initialTimer);
-      data.subscription.unsubscribe();
-    };
+    const { data } = supabase.auth.onAuthStateChange(() => { window.setTimeout(() => { void loadIdentity(); }, 0); });
+    return () => { window.clearTimeout(initialTimer); data.subscription.unsubscribe(); };
   }, [loadIdentity, supabase]);
 
   async function signOut() {
     if (!supabase) return;
     await supabase.auth.signOut();
     setIdentity(null);
+    setDashboard(null);
+    setRouteProgress(null);
     setSignedIn(false);
   }
 
@@ -210,24 +505,32 @@ export function StudentApp({ section }: { section: string[] }) {
   if (!ready) return <main className="loading-page"><RefreshCw className="spin" /> Cargando sesión…</main>;
   if (!signedIn) return <LoginPanel supabase={supabase} onSignedIn={loadIdentity} />;
 
+  const isStudent = identity?.portal.institution_role === "student";
+  const title = navigation.find((item) => item.key === active)?.label ?? "Inicio";
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={24} /></div><div><strong>ENS English</strong><span>Local · Supabase</span></div></div>
-        <nav aria-label="Navegación del estudiante">
-          {navigation.map(({ key, label, icon: Icon }) => <Link key={key} href={routeFor(key)} className={`nav-link ${active === key ? "active" : ""}`}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>)}
-        </nav>
+        <nav aria-label="Navegación del estudiante">{navigation.map(({ key, label, icon: Icon }) => <Link key={key} href={routeFor(key)} className={`nav-link ${active === key ? "active" : ""}`}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>)}</nav>
         <div className="staging-note">Sesión real local · sin datos de producción</div>
       </aside>
       <main className="main-content">
         <header className="topbar">
-          <div><span className="eyebrow">ENS ENGLISH · LOCAL</span><h1>{navigation.find((item) => item.key === active)?.label ?? "Inicio"}</h1></div>
+          <div><span className="eyebrow">ENS ENGLISH · LOCAL</span><h1>{title}</h1></div>
           {identity ? <div className="topbar-actions"><div className="identity-chip" data-testid="identity-chip"><div className="initials">{(identity.portal.display_alias ?? "ND").slice(0,2).toUpperCase()}</div><div><strong>{identity.portal.display_alias ?? "No disponible"}</strong><span>{roleLabel(identity.portal.institution_role)}</span></div></div><button data-testid="logout" className="icon-button" type="button" aria-label="Cerrar sesión" onClick={signOut}><LogOut size={19} /></button></div> : null}
         </header>
         {error ? <div className="form-error page-error" role="alert">{error}</div> : null}
         {loading && identity ? <div className="sync-note"><RefreshCw className="spin" size={14} /> Actualizando sesión…</div> : null}
-        {identity && (active === "inicio" || active === "perfil") ? <IdentityPanel identity={identity} /> : null}
-        {identity && active !== "inicio" && active !== "perfil" ? <EmptyPanel title={navigation.find((item) => item.key === active)?.label ?? "Módulo"} /> : null}
+
+        {!isStudent && identity ? <div data-testid="role-home"><IdentityPanel identity={identity} /><EmptyPanel title="Acceso académico de estudiante no habilitado" detail="Este rol puede autenticarse, pero no puede iniciar lecciones como estudiante." /></div> : null}
+        {isStudent && identity && active === "inicio" && dashboard ? <DashboardPanel dashboard={dashboard} states={wordStates} /> : null}
+        {isStudent && identity && active === "perfil" ? <IdentityPanel identity={identity} /> : null}
+        {isStudent && active === "progreso" && routeProgress ? <ProgressPanel progress={routeProgress} /> : null}
+        {isStudent && active === "aprender" && dashboard ? <LessonPanel supabase={supabase} dashboard={dashboard} onAcademicChange={loadStudentData} /> : null}
+        {isStudent && (active === "jugar" || active === "companeros") ? <EmptyPanel title={title} detail="Sin progreso registrado para este módulo." /> : null}
+        {isStudent && active === "inicio" && !dashboard && !loading ? <EmptyPanel title="Sin progreso registrado" /> : null}
+
         <footer>Sistema creado por Oscar Alejandro Gil Valencia</footer>
       </main>
     </div>

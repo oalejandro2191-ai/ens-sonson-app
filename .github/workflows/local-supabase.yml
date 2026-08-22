@@ -52,7 +52,7 @@ jobs:
       - name: Remove ephemeral bootstrap from migration directory
         if: always()
         run: node scripts/remove-empty-db-bootstrap.mjs
-      - name: Load TEST-ONLY helpers outside deployable migrations
+      - name: Load TEST-ONLY helpers and StudentApp runtime patch
         shell: bash
         run: |
           supabase status -o env > /tmp/ens-supabase.env
@@ -60,6 +60,7 @@ jobs:
           source /tmp/ens-supabase.env
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/test_helpers.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/patches/studentapp_runtime.sql
       - name: SQL guard for valid-review spacing candidate
         shell: bash
         run: |
@@ -77,6 +78,13 @@ jobs:
           SUPABASE_ANON_KEY="$ANON_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           node tests/local-supabase/pilot-security-learning.mjs
+      - name: Run StudentApp server recovery contract
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" node tests/local-supabase/studentapp-runtime.mjs
       - name: Dashboard transaction and isolation test
         shell: bash
         run: |
