@@ -1,0 +1,66 @@
+name: Local Supabase Pilot
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - 'supabase/**'
+      - 'tests/local-supabase/**'
+      - '.github/workflows/local-supabase.yml'
+  push:
+    branches: [feature/local-supabase-pilot-harness]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Record tool versions
+        run: |
+          docker --version
+          supabase --version
+          node --version
+          npm --version
+      - name: Start isolated Supabase stack
+        run: supabase start
+      - name: Reset database from migrations and seed
+        run: supabase db reset --local
+      - name: Run Auth, RLS, RPC and mastery integration suite
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/ens-supabase.env
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          node tests/local-supabase/pilot-security-learning.mjs | tee /tmp/local-supabase-results.json
+      - name: Database state summary
+        shell: bash
+        run: |
+          supabase status
+          supabase db lint --local || true
+      - name: Upload local test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-supabase-pilot-results
+          path: /tmp/local-supabase-results.json
+          if-no-files-found: warn
+      - name: Stop isolated stack
+        if: always()
+        run: supabase stop --no-backup
