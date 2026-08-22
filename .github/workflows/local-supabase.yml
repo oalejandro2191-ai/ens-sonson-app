@@ -5,16 +5,20 @@ on:
     branches: [staging]
     paths:
       - 'supabase/**'
+      - 'scripts/**'
       - 'tests/local-supabase/**'
       - 'tests/migration-boundary.test.mjs'
       - 'tests/repository-secrets.test.mjs'
       - '.github/workflows/local-supabase.yml'
   push:
-    branches: [feature/local-supabase-pilot-harness]
+    branches: [feature/local-studentapp-integration]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  ENS_DB_TARGET: local-empty
 
 jobs:
   local-backend:
@@ -37,12 +41,17 @@ jobs:
           node --version
           npm --version
           psql --version
-      - name: Guard deployable migrations and repository secrets
+      - name: Guard incremental migrations and repository secrets
         run: node --test tests/migration-boundary.test.mjs tests/repository-secrets.test.mjs
+      - name: Materialize EMPTY DATABASE BOOTSTRAP ONLY for isolated Docker
+        run: node scripts/assemble-empty-db-bootstrap.mjs
       - name: Start isolated Supabase stack
         run: supabase start
-      - name: Reset database from deployable migrations and local seed
+      - name: Reset empty local database from bootstrap + incremental candidates + local seed
         run: supabase db reset --local
+      - name: Remove ephemeral bootstrap from migration directory
+        if: always()
+        run: node scripts/remove-empty-db-bootstrap.mjs
       - name: Load TEST-ONLY helpers outside deployable migrations
         shell: bash
         run: |
@@ -68,11 +77,17 @@ jobs:
           SUPABASE_ANON_KEY="$ANON_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           node tests/local-supabase/pilot-security-learning.mjs
-      - name: Database state summary
+      - name: Dashboard transaction and isolation test
         shell: bash
         run: |
-          supabase status
-          supabase db lint --local
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/local-supabase/dashboard-stability.sql
+      - name: Database lint must be clean
+        run: supabase db lint --local --level warning
       - name: Stop isolated stack
         if: always()
-        run: supabase stop --no-backup
+        run: |
+          node scripts/remove-empty-db-bootstrap.mjs
+          supabase stop --no-backup

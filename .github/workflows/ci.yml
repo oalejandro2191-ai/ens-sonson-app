@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, staging]
   push:
-    branches: [staging]
+    branches: [staging, feature/local-studentapp-integration]
 
 permissions:
   contents: write
@@ -40,7 +40,7 @@ jobs:
           name: package-lock
           path: package-lock.json
       - name: Commit generated lockfile to staging
-        if: ${{ github.event_name == 'push' && steps.lock.outputs.generated == 'true' && success() }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/staging' && steps.lock.outputs.generated == 'true' && success() }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
