@@ -1,3 +1,4 @@
+-- LOCAL FIXTURE DATA ONLY. Never deploy to a remote Supabase project.
 insert into public.schools(id,name,municipality,department) values
 ('11111111-1111-1111-1111-111111111111','ENS Local Pilot','Sonsón','Antioquia'),
 ('11111111-1111-1111-1111-111111111112','Other School Test','Medellín','Antioquia')

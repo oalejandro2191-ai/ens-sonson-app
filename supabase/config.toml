@@ -14,7 +14,7 @@ major_version = 17
 
 [db.seed]
 enabled = true
-sql_paths = ["./seed.sql"]
+sql_paths = ["./local/seed.sql"]
 
 [auth]
 enabled = true
@@ -26,9 +26,6 @@ enable_anonymous_sign_ins = false
 minimum_password_length = 10
 
 [studio]
-enabled = false
-
-[inbucket]
 enabled = false
 
 [storage]
