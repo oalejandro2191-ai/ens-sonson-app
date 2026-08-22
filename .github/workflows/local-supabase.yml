@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.115.0
       - name: Record tool versions
         run: |
           docker --version
