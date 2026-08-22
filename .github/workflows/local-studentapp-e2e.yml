@@ -62,7 +62,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" NEXT_PUBLIC_ENS_ROUTE_CODE="A1-V3" npm run dev > /tmp/ens-next.log 2>&1 &
           echo $! > /tmp/ens-next.pid
           for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:3000/estudiante >/dev/null; then exit 0; fi
+            if curl -fsS http://localhost:3000/estudiante >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/ens-next.log
@@ -73,7 +73,7 @@ jobs:
           set -a
           source /tmp/ens-supabase.env
           set +a
-          BASE_URL="http://127.0.0.1:3000" SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" npx playwright test tests/e2e/studentapp.spec.mjs
+          BASE_URL="http://localhost:3000" SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" npx playwright test tests/e2e/studentapp.spec.mjs
       - name: Preserve Next.js log
         if: always()
         run: cp /tmp/ens-next.log artifacts/e2e/next.log || true
