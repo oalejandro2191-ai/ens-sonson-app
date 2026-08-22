@@ -189,9 +189,14 @@ export function StudentApp({ section }: { section: string[] }) {
 
   useEffect(() => {
     if (!supabase) return;
-    void loadIdentity();
-    const { data } = supabase.auth.onAuthStateChange(() => { void loadIdentity(); });
-    return () => data.subscription.unsubscribe();
+    const initialTimer = window.setTimeout(() => { void loadIdentity(); }, 0);
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => { void loadIdentity(); }, 0);
+    });
+    return () => {
+      window.clearTimeout(initialTimer);
+      data.subscription.unsubscribe();
+    };
   }, [loadIdentity, supabase]);
 
   async function signOut() {
