@@ -6,6 +6,11 @@ revoke all on table private.practice_session_receipts from anon, authenticated;
 revoke all on table private.institution_audit_log from anon, authenticated;
 revoke all on table private.group_membership_events from anon, authenticated;
 
+-- Supabase service_role remains the trusted administrative identity for local test fixture setup.
+grant usage on schema public, private to service_role;
+grant all privileges on all tables in schema public, private to service_role;
+grant all privileges on all sequences in schema public, private to service_role;
+
 -- Keep legacy RPCs out of the pilot browser surface when they exist in a fuller schema.
 do $$
 begin
