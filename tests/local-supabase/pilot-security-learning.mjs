@@ -29,16 +29,21 @@ const profiles=[
   {id:ids['student5@ens.local'],school_id:otherSchool,role:'student',display_alias:'Outside Student'}
 ];
 let z=await service.from('profiles').upsert(profiles); if(z.error) throw z.error;
-z=await service.schema('private').from('institution_memberships').upsert([
-  {school_id:school,user_id:ids['admin@ens.local'],role:'institution_admin',status:'active'},
-  {school_id:school,user_id:ids['teacher@ens.local'],role:'teacher',status:'active'},
-  ...['student1','student2','student3','student4'].map(n=>({school_id:school,user_id:ids[`${n}@ens.local`],role:'student',status:'active'})),
-  {school_id:otherSchool,user_id:ids['student5@ens.local'],role:'student',status:'active'}
-],{onConflict:'school_id,user_id,role'}); if(z.error) throw z.error;
-z=await service.from('group_members').upsert(['student1','student2','student3','student4'].map(n=>({group_id:group,student_id:ids[`${n}@ens.local`],status:'active'})),{onConflict:'group_id,student_id'}); if(z.error) throw z.error;
-z=await service.from('group_members').upsert({group_id:otherGroup,student_id:ids['student5@ens.local'],status:'active'},{onConflict:'group_id,student_id'}); if(z.error) throw z.error;
-const tm=await service.schema('private').from('institution_memberships').select('id').eq('user_id',ids['teacher@ens.local']).eq('role','teacher').single(); if(tm.error) throw tm.error;
-z=await service.schema('private').from('teacher_assignments').upsert({membership_id:tm.data.id,group_id:group,academic_year_id:year,status:'active'},{onConflict:'membership_id,group_id,academic_year_id'}); if(z.error) throw z.error;
+
+async function configureMembership(userId, schoolId, role, groupId=null, academicYearId=null) {
+  const { error } = await service.rpc('local_test_configure_membership', {
+    target_user_id:userId,
+    target_school_id:schoolId,
+    target_role:role,
+    target_group_id:groupId,
+    target_academic_year_id:academicYearId
+  });
+  if (error) throw error;
+}
+await configureMembership(ids['admin@ens.local'],school,'institution_admin');
+await configureMembership(ids['teacher@ens.local'],school,'teacher',group,year);
+for (const n of ['student1','student2','student3','student4']) await configureMembership(ids[`${n}@ens.local`],school,'student',group);
+await configureMembership(ids['student5@ens.local'],otherSchool,'student',otherGroup);
 
 async function login(email){ const c=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}}); const {error}=await c.auth.signInWithPassword({email,password}); if(error) throw error; return c; }
 const admin=await login('admin@ens.local'), teacher=await login('teacher@ens.local'), student=await login('student1@ens.local'), student2=await login('student2@ens.local'), outsider=await login('student5@ens.local');
