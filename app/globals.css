@@ -1,0 +1,68 @@
+:root {
+  --green: #176a45;
+  --yellow: #e4b82f;
+  --ink: #18231d;
+  --muted: #65736b;
+  --surface: #ffffff;
+  --line: #dfe7e2;
+  --bg: #f4f7f5;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+a { color: inherit; text-decoration: none; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: 244px minmax(0, 1fr); }
+.sidebar { padding: 24px 16px; background: #0f3f2b; color: white; display: flex; flex-direction: column; gap: 28px; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px; }
+.brand-mark { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; color: #173e2c; background: #f1c94d; }
+.brand strong, .brand span { display: block; }
+.brand span { color: #b9d0c4; font-size: 12px; margin-top: 2px; }
+.sidebar nav { display: grid; gap: 8px; }
+.nav-link { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 13px; color: #c8d8d0; font-weight: 700; }
+.nav-link:hover, .nav-link.active { background: rgba(255,255,255,.12); color: white; }
+.staging-note { margin-top: auto; font-size: 12px; line-height: 1.5; color: #a9c3b6; padding: 12px; border-top: 1px solid rgba(255,255,255,.14); }
+.main-content { min-width: 0; padding: 30px; }
+.topbar { display: flex; gap: 24px; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.topbar h1 { margin: 5px 0 0; font-size: clamp(26px, 4vw, 38px); }
+.eyebrow { color: var(--green); font-weight: 900; letter-spacing: .08em; font-size: 11px; }
+.identity-chip { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border: 1px solid var(--line); border-radius: 16px; background: white; }
+.initials { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; color: white; background: var(--green); }
+.identity-chip strong, .identity-chip span { display: block; }
+.identity-chip span { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 12px 34px rgba(29, 53, 40, .06); }
+.hero { padding: clamp(24px, 5vw, 46px); display: grid; grid-template-columns: 1.4fr .6fr; gap: 28px; align-items: center; }
+.hero h2 { margin: 10px 0 14px; max-width: 680px; font-size: clamp(28px, 5vw, 50px); line-height: 1.04; letter-spacing: -.04em; }
+.hero p { color: var(--muted); font-size: 16px; line-height: 1.7; max-width: 720px; }
+.metric-placeholder { border-radius: 18px; padding: 24px; background: #edf6f1; border: 1px dashed #9fc9b2; text-align: center; }
+.metric-placeholder span, .metric-placeholder small { display: block; color: var(--muted); }
+.metric-placeholder strong { display: block; font-size: 62px; color: var(--green); margin: 8px 0; }
+.capability-grid { margin-top: 18px; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+.capability-card { padding: 20px; }
+.capability-card h3 { margin: 12px 0 8px; }
+.capability-card p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+.status-dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
+.status-dot.ready { background: #2ca66b; }
+.status-dot.pending { background: var(--yellow); }
+.empty-state { padding: 52px; max-width: 900px; }
+.empty-state h2 { font-size: 34px; margin: 10px 0; }
+.empty-state p { color: var(--muted); line-height: 1.7; max-width: 700px; }
+footer { text-align: center; color: #708077; font-size: 12px; padding: 32px 0 8px; }
+@media (max-width: 920px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { position: sticky; top: 0; z-index: 10; padding: 10px; gap: 10px; }
+  .brand, .staging-note { display: none; }
+  .sidebar nav { grid-template-columns: repeat(6, minmax(68px,1fr)); overflow-x: auto; }
+  .nav-link { justify-content: center; flex-direction: column; gap: 3px; padding: 7px 4px; font-size: 11px; min-height: 54px; }
+  .main-content { padding: 20px; }
+  .hero { grid-template-columns: 1fr; }
+  .capability-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 560px) {
+  .sidebar nav { grid-template-columns: repeat(6, 74px); }
+  .topbar { align-items: flex-start; }
+  .identity-chip { display: none; }
+  .main-content { padding: 16px; }
+  .hero { padding: 24px 20px; }
+  .capability-grid { grid-template-columns: 1fr; }
+  .empty-state { padding: 30px 22px; }
+}
