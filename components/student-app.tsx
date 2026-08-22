@@ -128,7 +128,7 @@ function IdentityPanel({ identity }: { identity: IdentityView }) {
 export function StudentApp({ section }: { section: string[] }) {
   const active = resolveStudentSection(section);
   const supabase = useMemo(() => getBrowserSupabase(), []);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !supabase);
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [identity, setIdentity] = useState<IdentityView | null>(null);
@@ -188,7 +188,7 @@ export function StudentApp({ section }: { section: string[] }) {
   }, [supabase]);
 
   useEffect(() => {
-    if (!supabase) { setReady(true); return; }
+    if (!supabase) return;
     void loadIdentity();
     const { data } = supabase.auth.onAuthStateChange(() => { void loadIdentity(); });
     return () => data.subscription.unsubscribe();
