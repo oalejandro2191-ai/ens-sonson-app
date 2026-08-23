@@ -25,6 +25,7 @@ async function browserLogin(page,email,pass=password){
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(pass);
   await page.getByTestId('login-submit').click();
+  if(pass===password) await expect(page.getByTestId('identity-chip')).toBeVisible();
 }
 
 async function active(client){
