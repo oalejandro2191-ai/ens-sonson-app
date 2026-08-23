@@ -7,6 +7,7 @@ const root = process.cwd();
 const migrationsDir = join(root, 'supabase', 'migrations');
 const localDir = join(root, 'supabase', 'local');
 const bootstrapDir = join(root, 'supabase', 'bootstrap', 'EMPTY_DATABASE_BOOTSTRAP_ONLY');
+const rollbackDir = join(root, 'supabase', 'rollback');
 
 const forbidden = [
   /TEST[- ]ONLY/i,
@@ -23,6 +24,7 @@ const expectedIncremental = new Set([
   '20260822000001_staging_security_hardening.sql',
   '20260822000002_student_read_api.sql',
   '20260822000003_fix_valid_review_spacing.sql',
+  '20260822000004_active_route_session_recovery.sql',
 ]);
 
 function walk(path, files = []) {
@@ -59,6 +61,14 @@ test('local fixtures and service helpers stay outside incremental migrations', (
   assert(existsSync(join(localDir, 'seed.sql')), 'supabase/local/seed.sql missing');
   assert(existsSync(join(localDir, 'test_helpers.sql')), 'supabase/local/test_helpers.sql missing');
   assert(!existsSync(join(migrationsDir, '20260822000002_local_test_helpers.sql')));
+});
+
+test('active-session candidate has an explicit rollback outside migrations', () => {
+  const rollback = join(rollbackDir, '20260822000004_active_route_session_recovery.rollback.sql');
+  assert(existsSync(rollback), 'active-session rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /drop function if exists public\.get_my_active_route_session_v1\(text\)/i);
+  assert.match(source, /create or replace function public\.start_route_lesson_session_v1/i);
 });
 
 test('browser source contains no service-role credential path', () => {

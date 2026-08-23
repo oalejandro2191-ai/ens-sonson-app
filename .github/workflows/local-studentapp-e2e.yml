@@ -41,7 +41,6 @@ jobs:
           source /tmp/ens-supabase.env
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/test_helpers.sql
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/patches/studentapp_runtime.sql
       - name: Create seven fictitious local Auth accounts
         shell: bash
         run: |

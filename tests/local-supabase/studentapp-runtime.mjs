@@ -14,10 +14,15 @@ async function login(email){
   return client;
 }
 
+const anonymous=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
 const student=await login('student1@ens.local');
+const otherStudent=await login('student2@ens.local');
 const teacher=await login('teacher@ens.local');
 
-let r=await student.rpc('get_my_active_route_session_v1',{target_route_code:'A1-V3'});
+let r=await anonymous.rpc('get_my_active_route_session_v1',{target_route_code:'A1-V3'});
+assert(r.error,'anonymous caller must be rejected');
+
+r=await student.rpc('get_my_active_route_session_v1',{target_route_code:'A1-V3'});
 assert.ifError(r.error);
 assert.equal(r.data,null);
 
@@ -32,6 +37,21 @@ assert.ifError(r.error);
 assert.equal(r.data.session_id,first.data.session_id);
 assert.equal(r.data.tasks.length,8);
 assert.equal(r.data.attempts.length,0);
+
+// Another student cannot discover or mutate this active session.
+r=await otherStudent.rpc('get_my_active_route_session_v1',{target_route_code:'A1-V3'});
+assert.ifError(r.error);
+assert.equal(r.data,null);
+const foreignAttempt=await otherStudent.rpc('record_route_lesson_attempt_v1',{
+  target_session_id:first.data.session_id,
+  target_word_id:wordBe,
+  target_activity_type:'recall',
+  provided_answer:'be',
+  provided_response_time_ms:800,
+  provided_client_event_id:'runtime_foreign_attempt_01',
+  provided_attempt_number:1
+});
+assert(foreignAttempt.error,'foreign session mutation must be rejected');
 
 const recovered=await student.rpc('start_route_lesson_session_v1',{
   target_route_code:'A1-V3',target_lesson_id:lesson,
@@ -63,12 +83,20 @@ assert(incomplete.error,'incomplete session must not complete');
 
 const teacherActive=await teacher.rpc('get_my_active_route_session_v1',{target_route_code:'A1-V3'});
 assert(teacherActive.error,'teacher must not access a student runtime session');
+const teacherStart=await teacher.rpc('start_route_lesson_session_v1',{
+  target_route_code:'A1-V3',target_lesson_id:lesson,
+  provided_client_session_id:'teacher_runtime_denied_01',provided_client_context:{}
+});
+assert(teacherStart.error,'teacher must not start a student route session');
 
 console.log(JSON.stringify({
   ok:true,
+  anonymous_denied:'PASS',
   server_session_recovery:'PASS',
   task_contract:'PASS',
   confirmed_attempt_recovery:'PASS',
   incomplete_completion_blocked:'PASS',
+  foreign_session_hidden:'PASS',
+  foreign_session_mutation_denied:'PASS',
   teacher_student_runtime_denied:'PASS'
 },null,2));

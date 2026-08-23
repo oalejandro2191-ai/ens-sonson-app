@@ -1,6 +1,6 @@
--- LOCAL STUDENTAPP RUNTIME PATCH ONLY.
--- Never deploy this file through supabase db push. It exists outside supabase/migrations.
--- It supplies server-based active-session recovery while the contract is validated locally.
+-- Deployable candidate: server-authoritative active route session recovery.
+-- This candidate is exercised only against the isolated local Docker stack in this phase.
+-- Do not apply to the existing production backend without a separate explicit review and authorization.
 
 create or replace function public.start_route_lesson_session_v1(
   target_route_code text,
@@ -22,25 +22,35 @@ declare
   ctx jsonb:=coalesce(provided_client_context,'{}'::jsonb);
 begin
   if viewer is null then raise exception 'Sesión requerida'; end if;
-  if provided_client_session_id is null or char_length(provided_client_session_id) not between 8 and 120 or provided_client_session_id !~ '^[A-Za-z0-9:_-]+$' then
+  if provided_client_session_id is null
+     or char_length(provided_client_session_id) not between 8 and 120
+     or provided_client_session_id !~ '^[A-Za-z0-9:_-]+$' then
     raise exception 'client_session_id no válido';
   end if;
 
-  select * into route_row from public.learning_routes where route_code=target_route_code and status='published';
+  select * into route_row
+  from public.learning_routes
+  where route_code=target_route_code and status='published';
   if route_row.id is null then raise exception 'Ruta no disponible'; end if;
   if not private.has_institution_role(route_row.school_id,array['student'::public.institution_role]) then
     raise exception 'Solo un estudiante activo puede iniciar una lección';
   end if;
 
-  select * into lesson_row from public.learning_lessons where id=target_lesson_id and route_id=route_row.id;
+  select * into lesson_row
+  from public.learning_lessons
+  where id=target_lesson_id and route_id=route_row.id;
   if lesson_row.id is null then raise exception 'La lección no pertenece a esta versión de la ruta'; end if;
 
-  -- Server authority: recover an unfinished session even when the browser lost its client id.
+  -- Recovery is server-authoritative and scoped to the authenticated student.
   select * into existing
   from public.practice_sessions
-  where student_id=viewer and route_id=route_row.id and lesson_id=lesson_row.id and status='in_progress'
+  where student_id=viewer
+    and route_id=route_row.id
+    and lesson_id=lesson_row.id
+    and status='in_progress'
   order by started_at desc
   limit 1;
+
   if existing.id is not null then
     return jsonb_build_object(
       'session_id',existing.id,
@@ -53,6 +63,7 @@ begin
   select * into existing
   from public.practice_sessions
   where student_id=viewer and client_session_id=provided_client_session_id;
+
   if existing.id is not null then
     return jsonb_build_object(
       'session_id',existing.id,
@@ -62,21 +73,31 @@ begin
     );
   end if;
 
-  select coalesce(array_agg(lu.word_id order by lu.lesson_unit_position)
-    filter(where wp.word_id is null or wp.next_review_at<=clock_timestamp()),'{}'::uuid[])
+  select coalesce(
+    array_agg(lu.word_id order by lu.lesson_unit_position)
+      filter(where wp.word_id is null or wp.next_review_at<=clock_timestamp()),
+    '{}'::uuid[]
+  )
   into eligible
   from public.learning_lesson_units lu
-  left join public.student_word_progress wp on wp.student_id=viewer and wp.word_id=lu.word_id
+  left join public.student_word_progress wp
+    on wp.student_id=viewer and wp.word_id=lu.word_id
   where lu.lesson_id=lesson_row.id;
 
   insert into public.practice_sessions(
-    student_id,client_session_id,source,source_id,route_id,lesson_id,session_kind,run_mode,status,last_activity_at,client_context,reward_eligible_word_ids
+    student_id,client_session_id,source,source_id,route_id,lesson_id,
+    session_kind,run_mode,status,last_activity_at,client_context,reward_eligible_word_ids
   ) values(
-    viewer,provided_client_session_id,'free_practice',lesson_row.id,route_row.id,lesson_row.id,'learning','normal','in_progress',clock_timestamp(),ctx,eligible
+    viewer,provided_client_session_id,'free_practice',lesson_row.id,route_row.id,lesson_row.id,
+    'learning','normal','in_progress',clock_timestamp(),ctx,eligible
   ) returning id into created_id;
 
-  insert into public.student_lesson_progress(student_id,route_id,lesson_id,status,mastery_status,unlocked_at,started_at,updated_at)
-  values(viewer,route_row.id,lesson_row.id,'in_progress','in_progress',clock_timestamp(),clock_timestamp(),clock_timestamp())
+  insert into public.student_lesson_progress(
+    student_id,route_id,lesson_id,status,mastery_status,unlocked_at,started_at,updated_at
+  ) values(
+    viewer,route_row.id,lesson_row.id,'in_progress','in_progress',
+    clock_timestamp(),clock_timestamp(),clock_timestamp()
+  )
   on conflict(student_id,route_id,lesson_id) do update set
     started_at=coalesce(public.student_lesson_progress.started_at,excluded.started_at),
     status='in_progress',
@@ -92,8 +113,9 @@ begin
   );
 end $$;
 
-create or replace function public.get_my_active_route_session_v1(target_route_code text default 'A1-V3')
-returns jsonb
+create or replace function public.get_my_active_route_session_v1(
+  target_route_code text default 'A1-V3'
+) returns jsonb
 language plpgsql
 stable
 security definer
@@ -108,21 +130,29 @@ declare
   attempts jsonb;
 begin
   if viewer is null then raise exception 'Sesión requerida'; end if;
-  select * into route_row from public.learning_routes where route_code=target_route_code and status='published';
+
+  select * into route_row
+  from public.learning_routes
+  where route_code=target_route_code and status='published';
   if route_row.id is null then raise exception 'Ruta no disponible'; end if;
+
   if not private.has_institution_role(route_row.school_id,array['student'::public.institution_role]) then
     raise exception 'Perfil de estudiante requerido';
   end if;
 
   select * into session_row
   from public.practice_sessions
-  where student_id=viewer and route_id=route_row.id and status='in_progress'
+  where student_id=viewer
+    and route_id=route_row.id
+    and status='in_progress'
   order by started_at desc
   limit 1;
 
   if session_row.id is null then return null; end if;
 
-  select * into lesson_row from public.learning_lessons where id=session_row.lesson_id and route_id=route_row.id;
+  select * into lesson_row
+  from public.learning_lessons
+  where id=session_row.lesson_id and route_id=route_row.id;
   if lesson_row.id is null then raise exception 'Lección activa no disponible'; end if;
 
   select coalesce(jsonb_agg(jsonb_build_object(
