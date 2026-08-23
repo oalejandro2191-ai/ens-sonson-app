@@ -77,6 +77,15 @@ jobs:
           SUPABASE_ANON_KEY="$ANON_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           node tests/local-supabase/pilot-security-learning.mjs
+      - name: Run institution admin management integration suite
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          node tests/local-supabase/admin-management.mjs
       - name: Run StudentApp server recovery contract
         shell: bash
         run: |
