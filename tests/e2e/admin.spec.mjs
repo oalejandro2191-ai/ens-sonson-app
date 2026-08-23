@@ -22,6 +22,10 @@ async function adminLogin(page,email='admin@ens.local',pass=password){
   await page.getByTestId('admin-login-email').fill(email);
   await page.getByTestId('admin-login-password').fill(pass);
   await page.getByTestId('admin-login-submit').click();
+  if(email==='admin@ens.local' && pass===password){
+    await expect(page.getByTestId('admin-portal')).toBeVisible();
+    await expect(page.locator('.topbar svg.spin')).toHaveCount(0);
+  }
 }
 
 async function openTab(page,name){
@@ -63,7 +67,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A04 crea, edita, archiva y restaura grupo',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Grupos');
     const section=page.getByTestId('admin-groups-module');
     await expect(section).toBeVisible();
@@ -90,7 +93,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A05 lista estudiantes, busca y filtra por grupo',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Estudiantes');
     const section=page.getByTestId('admin-students-module');
     await expect(section).toContainText('Student 1');
@@ -102,7 +104,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A06 mueve estudiante, suspende, reactiva y conserva controles',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Estudiantes');
     let row=studentRow(page,'Student 1');
     await row.locator('select').selectOption({label:'7B UI TEST'});
@@ -128,7 +129,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A07 catálogo permite crear y editar Learning Unit',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Vocabulario');
     const section=page.getByTestId('admin-vocabulary-module');
     await section.getByLabel('Inglés').fill('checkpointui');
@@ -150,7 +150,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A08 archiva, restaura y elimina físicamente solo vocabulario sin uso',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Vocabulario');
     const section=page.getByTestId('admin-vocabulary-module');
     await section.getByPlaceholder('Buscar en inglés o español').fill('checkpointui');
@@ -171,7 +170,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A09 palabra usada no permite borrado destructivo',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Vocabulario');
     const section=page.getByTestId('admin-vocabulary-module');
     await section.getByPlaceholder('Buscar en inglés o español').fill('be');
@@ -195,7 +193,6 @@ test.describe.serial('ENS English local institution admin E2E',()=>{
 
   test('A11 auditoría muestra acciones administrativas',async({page})=>{
     await adminLogin(page);
-    await expect(page.getByTestId('admin-portal')).toBeVisible();
     await openTab(page,'Auditoría');
     const section=page.getByTestId('admin-audit-module');
     await expect(section).toContainText('group.created');
