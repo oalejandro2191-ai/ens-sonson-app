@@ -4,53 +4,46 @@
 
 - Closure commit: `66daf6036e5b88916f5c54c3663b3159e97926f1`.
 - Final StudentApp browser E2E: run `32609818852` — **25 PASS / 0 FAIL**.
-- Final StudentApp artifact: `studentapp-e2e-32609818852`, artifact ID `9485216284`.
-- Artifact SHA-256: `3939c86f745df2a5df089a20bdaae0a552a3f8a837e7a0e4f87092af96470807`.
-- Final Phase 1 closure CI: run `32610059098` — typecheck, lint, unit tests and build PASS.
-- Production changes: none. Incremental cost: USD 0.
+- Final Phase 1 closure CI: typecheck, lint, unit tests and build PASS.
+- Production changes: none.
 
-## FASE 2 — PORTAL DOCENTE-ADMINISTRADOR MVP — EN CURSO
+## STAGING ALPHA — REMOTE BACKEND READY
 
 - Branch: `feature/admin-portal-mvp`.
-- Base: Phase 1 closure commit `66daf6036e5b88916f5c54c3663b3159e97926f1`.
-- Current validated functional checkpoint: `11c83f2d1b9ea953014c9ad867133ef1fd035db9`.
-- Fix included: repaired the migration-boundary syntax guard after the prior CI stopped before exercising product code.
-- CI run `32610950804`: typecheck PASS, lint PASS, tests PASS, build PASS.
-- Local Supabase run `32610950803`: bootstrap/reset/migrations/integration/rollback/db lint PASS.
-- Browser E2E run `32610950802`: 25 scenarios PASS.
-- Authorization source: active `private.institution_memberships` role `institution_admin`; `superadmin` is not used for daily portal authorization.
-- Current backend read surface: `get_my_admin_portal_v1()`.
-- Dashboard values come from backend data. Fields without an implemented source return null and the UI displays `No configurado` instead of inventing data.
-- Group and student administrative writes are intentionally NOT part of this Alpha checkpoint.
+- Supabase Staging project: `ddtdcjohzhjqunuajcod` (`ens-sonson-staging-db`, `us-east-1`, Free).
+- Incremental cost confirmed: USD 0.
+- Production Supabase `pgdoxpcwtqjbmqvzihhs`: untouched.
+- Remote schema: bootstrap + validated incremental migrations through public-reference RLS hardening.
+- Staging fixtures created: 5 fictitious Auth accounts, 1 fictitious institution, 2 fictitious groups, 3 student memberships, 2 teacher assignments, 6 Learning Units, route `A1-V3`, 2 lessons.
+- `student1.staging@ens.test` has one persisted mastered word for dashboard verification.
+- Staging Auth seed Edge Function is disabled (version 2, JWT required, HTTP 410 only).
+- Temporary `pg_net` transport has been removed; no seed transport remains.
+- Credentials are NOT stored in Git.
 
-## STAGING ALPHA — AUTHORIZED, NOT YET CREATED
+## Remote authorization validation
 
-The user has explicitly authorized one separate Supabase Free project and deployment only to the existing Vercel project `ens-sonson-staging` (`prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx`).
+- Student identity/dashboard/route RPC: PASS.
+- Institution admin portal RPC: PASS with real staging counts (2 groups, 3 active students, 6 Learning Units, 1 route).
+- Teacher attempting admin portal: DENIED as expected.
+- Student attempting admin portal: DENIED as expected.
+- Teacher attempting student runtime dashboard: DENIED as expected.
+- Sensitive academic tables expose only SELECT RLS policies; direct student XP mutation did not change stored XP.
+- Private schema browser grants: none.
 
-Mandatory gate before remote creation:
+## Vercel Staging
 
-- organization must be `APP ENGLISH CLASS`;
-- creation cost must be USD 0;
-- sufficient Free project capacity must exist;
-- no paid compute, add-on or upgrade may be activated;
-- production Supabase `pgdoxpcwtqjbmqvzihhs` must remain untouched;
-- production Vercel `ens-sonson-app` must remain untouched.
+- Project: `ens-sonson-staging`.
+- Project ID: `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx`.
+- Team: `team_Af0Tp4NtemXmlaO4n2BqjkDx` (`OSKR21`).
+- Previous rollback deployment: `dpl_5e7hjsfUKkk4voTQnhGNu2hkZu2J`.
+- Staging-only Vercel config binds the project and uses only public browser configuration values. No service role, DB password, JWT secret, or user password is in Git.
 
-If any creation flow requests payment/card/upgrade, stop without creating the project.
+## Remaining exact work
 
-## Safety and scope
+1. Move branch to the Vercel-config commit and confirm CI.
+2. Deploy only `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx`.
+3. Validate `/api/health`, student login/lesson/recovery/persistence, admin login/counts and role rejection remotely.
+4. Inspect runtime/build logs and record deployment ID + rollback.
+5. Deliver staging URLs and the requested temporary admin/student credentials.
 
-- No production Supabase/Vercel/domain changes.
-- No real students or groups.
-- No historical roster import or 130 real accounts.
-- No paid resources.
-- No CSV, definitive activation, full vocabulary administration, assignments, complete offline, mass audio, rankings or Avatar Studio.
-
-## Next exact work block
-
-1. Inspect Supabase organization, current projects, plan and project creation cost.
-2. Only if cost is USD 0 and Free capacity exists, create `ens-sonson-staging-db`.
-3. Apply empty-database bootstrap plus incremental migrations 00001–00005 only.
-4. Create staging-only fictitious seed outside production migrations.
-5. Connect only Vercel project `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx` and deploy ENS English Staging Alpha.
-6. Execute remote student/admin/security smoke tests and record rollback.
+Do not modify `main`, production Supabase, production Vercel, real roster, or real users.
