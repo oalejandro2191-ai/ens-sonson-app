@@ -111,7 +111,7 @@ export default function AdminApp() {
   useEffect(() => {
     if (!supabase) return;
     const timer = window.setTimeout(() => { void loadPortal(); }, 0);
-    const { data } = supabase.auth.onAuthStateChange(() => window.setTimeout(() => { void loadPortal(); }, 0));
+    const { data } = supabase.auth.onAuthStateChange(() => { window.setTimeout(() => { void loadPortal(); }, 0); });
     return () => { window.clearTimeout(timer); data.subscription.unsubscribe(); };
   }, [loadPortal, supabase]);
 
