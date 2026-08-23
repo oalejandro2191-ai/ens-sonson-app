@@ -28,6 +28,7 @@ const expectedIncremental = new Set([
   '20260822000005_admin_portal_read_api.sql',
   '20260822000006_public_reference_rls.sql',
   '20260823000007_admin_management_mvp.sql',
+  '20260823000008_admin_access_reset_api.sql',
 ]);
 
 function walk(path, files = []) {
@@ -99,6 +100,14 @@ test('admin management candidate has an explicit non-destructive functional roll
   assert.match(source, /drop function if exists public\.admin_delete_unused_vocabulary_word_v1/i);
   assert.match(source, /create or replace function public\.get_my_admin_portal_v1/i);
   assert.doesNotMatch(source, /drop column\s+status/i, 'rollback must not destroy archive state columns');
+});
+
+test('admin access reset candidate has an explicit rollback', () => {
+  const rollback = join(rollbackDir, '20260823000008_admin_access_reset_api.rollback.sql');
+  assert(existsSync(rollback), 'admin access reset rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /drop function if exists public\.admin_validate_student_access_reset_v1\(uuid\)/i);
+  assert.match(source, /drop function if exists public\.admin_log_student_access_reset_v1\(uuid\)/i);
 });
 
 test('browser source contains no service-role credential path', () => {
