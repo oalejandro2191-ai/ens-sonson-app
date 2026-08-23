@@ -26,6 +26,7 @@ const expectedIncremental = new Set([
   '20260822000003_fix_valid_review_spacing.sql',
   '20260822000004_active_route_session_recovery.sql',
   '20260822000005_admin_portal_read_api.sql',
+  '20260822000006_public_reference_rls.sql',
 ]);
 
 function walk(path, files = []) {
@@ -78,6 +79,14 @@ test('admin portal read candidate has an explicit rollback outside migrations', 
   const source = readFileSync(rollback, 'utf8');
   assert.match(source, /drop function if exists public\.get_my_admin_portal_v1\(\)/i);
   assert.match(source, /drop function if exists private\.require_institution_admin\(\)/i);
+});
+
+test('public reference RLS candidate has an explicit rollback outside migrations', () => {
+  const rollback = join(rollbackDir, '20260822000006_public_reference_rls.rollback.sql');
+  assert(existsSync(rollback), 'public reference RLS rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /alter table public\.vocabulary_words disable row level security/i);
+  assert.match(source, /alter table public\.academic_years disable row level security/i);
 });
 
 test('browser source contains no service-role credential path', () => {
