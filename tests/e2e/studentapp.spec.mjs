@@ -20,7 +20,8 @@ async function apiLogin(email){
 }
 
 async function browserLogin(page,email,pass=password){
-  await page.goto('/estudiante');
+  const loginAlreadyVisible=await page.getByTestId('login-page').isVisible().catch(()=>false);
+  if(!loginAlreadyVisible) await page.goto('/estudiante');
   await expect(page.getByTestId('login-page')).toBeVisible();
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(pass);
