@@ -27,6 +27,7 @@ const expectedIncremental = new Set([
   '20260822000004_active_route_session_recovery.sql',
   '20260822000005_admin_portal_read_api.sql',
   '20260822000006_public_reference_rls.sql',
+  '20260823000007_admin_management_mvp.sql',
 ]);
 
 function walk(path, files = []) {
@@ -87,6 +88,17 @@ test('public reference RLS candidate has an explicit rollback outside migrations
   const source = readFileSync(rollback, 'utf8');
   assert.match(source, /alter table public\.vocabulary_words disable row level security/i);
   assert.match(source, /alter table public\.academic_years disable row level security/i);
+});
+
+test('admin management candidate has an explicit non-destructive functional rollback', () => {
+  const rollback = join(rollbackDir, '20260823000007_admin_management_mvp.rollback.sql');
+  assert(existsSync(rollback), 'admin management rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /drop function if exists public\.admin_create_group_v1/i);
+  assert.match(source, /drop function if exists public\.admin_set_student_status_v1/i);
+  assert.match(source, /drop function if exists public\.admin_delete_unused_vocabulary_word_v1/i);
+  assert.match(source, /create or replace function public\.get_my_admin_portal_v1/i);
+  assert.doesNotMatch(source, /drop column\s+status/i, 'rollback must not destroy archive state columns');
 });
 
 test('browser source contains no service-role credential path', () => {
