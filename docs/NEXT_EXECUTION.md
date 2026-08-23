@@ -13,40 +13,44 @@
 
 - Branch: `feature/admin-portal-mvp`.
 - Base: Phase 1 closure commit `66daf6036e5b88916f5c54c3663b3159e97926f1`.
-- Current checkpoint: secure `institution_admin` authorization and initial `/admin` layout.
+- Current validated functional checkpoint: `11c83f2d1b9ea953014c9ad867133ef1fd035db9`.
+- Fix included: repaired the migration-boundary syntax guard after the prior CI stopped before exercising product code.
+- CI run `32610950804`: typecheck PASS, lint PASS, tests PASS, build PASS.
+- Local Supabase run `32610950803`: bootstrap/reset/migrations/integration/rollback/db lint PASS.
+- Browser E2E run `32610950802`: 25 scenarios PASS.
 - Authorization source: active `private.institution_memberships` role `institution_admin`; `superadmin` is not used for daily portal authorization.
 - Current backend read surface: `get_my_admin_portal_v1()`.
-- Dashboard values come from local Supabase. Fields without an implemented source return null and the UI displays `No configurado` instead of inventing data.
-- Group and student administrative writes are intentionally NOT part of this first checkpoint.
+- Dashboard values come from backend data. Fields without an implemented source return null and the UI displays `No configurado` instead of inventing data.
+- Group and student administrative writes are intentionally NOT part of this Alpha checkpoint.
+
+## STAGING ALPHA — AUTHORIZED, NOT YET CREATED
+
+The user has explicitly authorized one separate Supabase Free project and deployment only to the existing Vercel project `ens-sonson-staging` (`prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx`).
+
+Mandatory gate before remote creation:
+
+- organization must be `APP ENGLISH CLASS`;
+- creation cost must be USD 0;
+- sufficient Free project capacity must exist;
+- no paid compute, add-on or upgrade may be activated;
+- production Supabase `pgdoxpcwtqjbmqvzihhs` must remain untouched;
+- production Vercel `ens-sonson-app` must remain untouched.
+
+If any creation flow requests payment/card/upgrade, stop without creating the project.
 
 ## Safety and scope
 
 - No production Supabase/Vercel/domain changes.
 - No real students or groups.
-- No historical roster changes.
-- No remote Supabase project or Development Branch.
+- No historical roster import or 130 real accounts.
 - No paid resources.
-- No CSV, definitive activation, full vocabulary administration, assignments, offline, audio, rankings or Avatar Studio.
+- No CSV, definitive activation, full vocabulary administration, assignments, complete offline, mass audio, rankings or Avatar Studio.
 
-## Pending validation for this checkpoint
+## Next exact work block
 
-- CI: typecheck, lint, unit tests, build.
-- Supabase local reset must apply `20260822000005_admin_portal_read_api.sql` cleanly.
-- Migration boundary and rollback guard must pass.
-
-## Next exact work block after green validation
-
-Implement protected local group administration only:
-
-- list own-institution groups;
-- create fictitious group;
-- edit name/grade/academic year;
-- activate/archive without physical deletion;
-- expose active student count;
-- record audit events.
-
-Then commit as:
-
-```text
-feat: add local group administration
-```
+1. Inspect Supabase organization, current projects, plan and project creation cost.
+2. Only if cost is USD 0 and Free capacity exists, create `ens-sonson-staging-db`.
+3. Apply empty-database bootstrap plus incremental migrations 00001–00005 only.
+4. Create staging-only fictitious seed outside production migrations.
+5. Connect only Vercel project `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx` and deploy ENS English Staging Alpha.
+6. Execute remote student/admin/security smoke tests and record rollback.
