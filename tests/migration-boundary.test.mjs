@@ -58,7 +58,7 @@ test('empty database baseline is physically outside incremental migrations', () 
   assert(existsSync(bootstrap), 'empty-database bootstrap missing');
   assert(existsSync(readme), 'bootstrap boundary README missing');
   assert.match(readFileSync(readme, 'utf8'), /EMPTY DATABASE BOOTSTRAP ONLY/);
-  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql'));
+  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql')));
   assert(!existsSync(join(migrationsDir, '00000000000000_EMPTY_DATABASE_BOOTSTRAP_ONLY.sql')), 'ephemeral bootstrap must never be committed');
 });
 
