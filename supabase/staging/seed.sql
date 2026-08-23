@@ -112,21 +112,21 @@ begin
   select id into v_l1 from public.learning_lessons where route_id=v_route and route_lesson_position=1;
   if v_l1 is null then
     insert into public.learning_lessons(route_id,collection_id,lesson_number,route_lesson_position,title,unit_count,purpose)
-    values(v_route,'10000000-0000-0000-0000-000000000001',1,1,'My Family',3,'Reconocer y recuperar vocabulario básico de familia.') returning id into v_l1;
+    values(v_route,'10000000-0000-0000-0000-000000000001'::uuid,1,1,'My Family',3,'Reconocer y recuperar vocabulario básico de familia.') returning id into v_l1;
   end if;
 
   select id into v_l2 from public.learning_lessons where route_id=v_route and route_lesson_position=2;
   if v_l2 is null then
     insert into public.learning_lessons(route_id,collection_id,lesson_number,route_lesson_position,title,unit_count,purpose)
-    values(v_route,'10000000-0000-0000-0000-000000000002',2,2,'At School',3,'Reconocer y recuperar vocabulario básico escolar.') returning id into v_l2;
+    values(v_route,'10000000-0000-0000-0000-000000000002'::uuid,2,2,'At School',3,'Reconocer y recuperar vocabulario básico escolar.') returning id into v_l2;
   end if;
 
   delete from public.learning_lesson_units where lesson_id in (v_l1,v_l2);
   insert into public.learning_lesson_units(lesson_id,collection_id,word_id,lesson_unit_position,source_collection_position)
-  select v_l1,'10000000-0000-0000-0000-000000000001',id,row_number() over(order by unit_code)::smallint,row_number() over(order by unit_code)::integer
+  select v_l1,'10000000-0000-0000-0000-000000000001'::uuid,id,row_number() over(order by unit_code)::smallint,row_number() over(order by unit_code)::integer
   from public.vocabulary_words where unit_code in ('STG-W001','STG-W002','STG-W003')
   union all
-  select v_l2,'10000000-0000-0000-0000-000000000002',id,row_number() over(order by unit_code)::smallint,row_number() over(order by unit_code)::integer
+  select v_l2,'10000000-0000-0000-0000-000000000002'::uuid,id,row_number() over(order by unit_code)::smallint,row_number() over(order by unit_code)::integer
   from public.vocabulary_words where unit_code in ('STG-W004','STG-W005','STG-W006');
 
   insert into public.student_stats(student_id,total_xp,coins,current_streak,longest_streak)
