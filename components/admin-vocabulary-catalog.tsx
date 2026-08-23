@@ -65,7 +65,7 @@ function Status({ value }: { value: string }) {
 
 export default function AdminVocabularyCatalog() {
   const supabase = useMemo(() => getBrowserSupabase(), []);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !supabase);
   const [authorized, setAuthorized] = useState(false);
   const [institution, setInstitution] = useState<string | null>(null);
   const [result, setResult] = useState<VocabularyResult>({ total: 0, limit: PAGE_SIZE, offset: 0, items: [] });
@@ -77,7 +77,7 @@ export default function AdminVocabularyCatalog() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const loadPage = useCallback(async (nextOffset: number, nextSearch = search, nextStatus = status) => {
+  const loadPage = useCallback(async (nextOffset: number, nextSearch: string, nextStatus: string) => {
     if (!supabase) return;
     setBusy(true);
     setError(null);
@@ -97,21 +97,31 @@ export default function AdminVocabularyCatalog() {
     } finally {
       setBusy(false);
     }
-  }, [search, status, supabase]);
+  }, [supabase]);
 
   useEffect(() => {
-    if (!supabase) { setReady(true); return; }
+    if (!supabase) return;
+    let cancelled = false;
     const run = async () => {
       const session = await supabase.auth.getSession();
-      if (!session.data.session) { setReady(true); return; }
+      if (!session.data.session) {
+        if (!cancelled) setReady(true);
+        return;
+      }
       const portal = await supabase.rpc("get_my_admin_portal_v1");
-      if (portal.error) { setReady(true); return; }
-      setAuthorized(true);
-      setInstitution((portal.data as { profile?: { institution?: string | null } })?.profile?.institution ?? null);
+      if (portal.error) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+      if (!cancelled) {
+        setAuthorized(true);
+        setInstitution((portal.data as { profile?: { institution?: string | null } })?.profile?.institution ?? null);
+      }
       await loadPage(0, "", "");
-      setReady(true);
+      if (!cancelled) setReady(true);
     };
     void run();
+    return () => { cancelled = true; };
   }, [loadPage, supabase]);
 
   function edit(item: VocabularyItem) {
@@ -157,7 +167,7 @@ export default function AdminVocabularyCatalog() {
     }
     setNotice(form.id ? "Learning Unit actualizada." : "Learning Unit agregada al catálogo.");
     setForm(emptyForm);
-    await loadPage(offset);
+    await loadPage(offset, search, status);
     setBusy(false);
   }
 
@@ -171,7 +181,7 @@ export default function AdminVocabularyCatalog() {
     );
     if (response.error) { setError(response.error.message); return; }
     setNotice(archive ? "Learning Unit archivada sin borrar su historial." : "Learning Unit restaurada.");
-    await loadPage(offset);
+    await loadPage(offset, search, status);
   }
 
   async function removeUnused(item: VocabularyItem) {
@@ -181,7 +191,7 @@ export default function AdminVocabularyCatalog() {
     if (response.error) { setError(response.error.message); return; }
     setNotice("Learning Unit sin historial eliminada definitivamente.");
     const nextOffset = result.items.length === 1 && offset > 0 ? Math.max(0, offset - PAGE_SIZE) : offset;
-    await loadPage(nextOffset);
+    await loadPage(nextOffset, search, status);
   }
 
   if (!ready) return <main className="loading-page"><RefreshCw className="spin" size={18} /> Cargando catálogo…</main>;
@@ -219,7 +229,7 @@ export default function AdminVocabularyCatalog() {
         <button className="primary-button" type="submit" disabled={busy}><Plus size={17} /> {form.id ? "Guardar Learning Unit" : "Agregar al catálogo"}</button>
       </form>
 
-      <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadPage(0); }}>
+      <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadPage(0, search, status); }}>
         <label className="search-field"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar en inglés o español" /></label>
         <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="active">Activas</option><option value="archived">Archivadas</option><option value="unpublished">No publicadas</option></select>
         <button className="secondary-button" type="submit">Filtrar</button>
@@ -229,9 +239,9 @@ export default function AdminVocabularyCatalog() {
       <div className="panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <span data-testid="vocabulary-range">Mostrando {first}–{last} de {result.total}</span>
         <div className="management-actions">
-          <button className="secondary-button" type="button" disabled={offset === 0 || busy} onClick={() => void loadPage(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft size={16} /> Anterior</button>
+          <button className="secondary-button" type="button" disabled={offset === 0 || busy} onClick={() => void loadPage(Math.max(0, offset - PAGE_SIZE), search, status)}><ChevronLeft size={16} /> Anterior</button>
           <strong data-testid="vocabulary-page">Página {pageNumber} de {pageCount}</strong>
-          <button className="secondary-button" type="button" disabled={offset + PAGE_SIZE >= result.total || busy} onClick={() => void loadPage(offset + PAGE_SIZE)}>Siguiente <ChevronRight size={16} /></button>
+          <button className="secondary-button" type="button" disabled={offset + PAGE_SIZE >= result.total || busy} onClick={() => void loadPage(offset + PAGE_SIZE, search, status)}>Siguiente <ChevronRight size={16} /></button>
         </div>
       </div>
 
