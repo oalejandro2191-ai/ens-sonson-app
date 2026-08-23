@@ -60,8 +60,8 @@ function AdminLogin({ supabase }: { supabase: SupabaseClient }) {
 
   return <main className="login-page" data-testid="admin-login-page">
     <section className="panel login-card">
-      <div className="brand login-brand"><div className="brand-mark"><ShieldCheck size={24} /></div><div><strong>ENS English</strong><span>Portal institucional local</span></div></div>
-      <span className="eyebrow">ACCESO PRIVADO</span>
+      <div className="brand login-brand"><div className="brand-mark"><ShieldCheck size={24} /></div><div><strong>ENS English</strong><span>Portal institucional Staging Alpha</span></div></div>
+      <span className="eyebrow">ACCESO PRIVADO · STAGING</span>
       <h1>Administración</h1>
       <p>Este acceso está reservado al administrador institucional. La autorización se valida nuevamente en Supabase.</p>
       <form className="login-form" onSubmit={submit}>
@@ -123,7 +123,7 @@ export default function AdminApp() {
     setSignedIn(false);
   }
 
-  if (!supabase) return <main className="loading-page">Supabase local no configurado.</main>;
+  if (!supabase) return <main className="loading-page">Supabase no configurado.</main>;
   if (!ready) return <main className="loading-page"><RefreshCw className="spin" size={18} /> Validando acceso…</main>;
   if (!signedIn) return <AdminLogin supabase={supabase} />;
 
@@ -148,11 +148,11 @@ export default function AdminApp() {
         <span className="nav-link"><Building2 size={20} /><span>Grupos</span></span>
         <span className="nav-link"><Users size={20} /><span>Estudiantes</span></span>
       </nav>
-      <div className="staging-note">Entorno local · autorización institution_admin · sin datos productivos</div>
+      <div className="staging-note">STAGING ALPHA · autorización institution_admin · solo datos ficticios</div>
     </aside>
     <main className="main-content">
       <header className="topbar">
-        <div><span className="eyebrow">ENS ENGLISH · ADMIN LOCAL</span><h1>Panel institucional</h1></div>
+        <div><span className="eyebrow">ENS ENGLISH · STAGING ALPHA</span><h1>Panel institucional</h1></div>
         <div className="topbar-actions">
           <div className="identity-chip" data-testid="admin-identity-chip"><div className="initials">{initials}</div><div><strong>{labelOrPending(profile.full_name)}</strong><span>Administrador institucional</span></div></div>
           <button className="icon-button" data-testid="admin-logout" aria-label="Cerrar sesión" onClick={signOut}><LogOut size={19} /></button>
@@ -184,8 +184,21 @@ export default function AdminApp() {
         <Metric label="Learning Units activas" value={dashboard.learning_units_active} pending="No configurado" />
         <Metric label="Learning Units archivadas" value={dashboard.learning_units_archived} pending="No configurado" />
         <Metric label="Rutas" value={dashboard.routes_total} />
-        <Metric label="Estado del sistema" value={dashboard.system_status === "local_ready" ? "Local listo" : dashboard.system_status} pending="Pendiente" />
+        <Metric label="Estado del sistema" value={dashboard.system_status === "local_ready" ? "Backend listo" : dashboard.system_status} pending="Pendiente" />
       </div>
+
+      <section className="capability-grid" aria-label="Módulos administrativos en construcción">
+        <article className="panel capability-card" data-testid="admin-groups-construction">
+          <Building2 size={24} />
+          <h3>Grupos</h3>
+          <p><strong>Módulo en construcción</strong>. En esta Alpha solo se muestran conteos reales del backend; todavía no hay controles de creación o edición.</p>
+        </article>
+        <article className="panel capability-card" data-testid="admin-students-construction">
+          <Users size={24} />
+          <h3>Estudiantes</h3>
+          <p><strong>Módulo en construcción</strong>. En esta Alpha no se presentan botones que aparenten gestionar estudiantes.</p>
+        </article>
+      </section>
 
       <footer>Sistema creado por Oscar Alejandro Gil Valencia</footer>
     </main>
