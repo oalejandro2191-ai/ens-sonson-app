@@ -29,6 +29,7 @@ const expectedIncremental = new Set([
   '20260822000006_public_reference_rls.sql',
   '20260823000007_admin_management_mvp.sql',
   '20260823000008_admin_access_reset_api.sql',
+  '20260823000009_admin_vocabulary_pagination.sql',
 ]);
 
 function walk(path, files = []) {
@@ -57,7 +58,7 @@ test('empty database baseline is physically outside incremental migrations', () 
   assert(existsSync(bootstrap), 'empty-database bootstrap missing');
   assert(existsSync(readme), 'bootstrap boundary README missing');
   assert.match(readFileSync(readme, 'utf8'), /EMPTY DATABASE BOOTSTRAP ONLY/);
-  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql')));
+  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql'));
   assert(!existsSync(join(migrationsDir, '00000000000000_EMPTY_DATABASE_BOOTSTRAP_ONLY.sql')), 'ephemeral bootstrap must never be committed');
 });
 
@@ -108,6 +109,15 @@ test('admin access reset candidate has an explicit rollback', () => {
   const source = readFileSync(rollback, 'utf8');
   assert.match(source, /drop function if exists public\.admin_validate_student_access_reset_v1\(uuid\)/i);
   assert.match(source, /drop function if exists public\.admin_log_student_access_reset_v1\(uuid\)/i);
+});
+
+test('admin vocabulary pagination candidate has an explicit rollback', () => {
+  const rollback = join(rollbackDir, '20260823000009_admin_vocabulary_pagination.rollback.sql');
+  assert(existsSync(rollback), 'admin vocabulary pagination rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /create or replace function public\.get_admin_vocabulary_v1/i);
+  assert.match(source, /provided_limit integer default 100/i);
+  assert.match(source, /provided_offset integer default 0/i);
 });
 
 test('browser source contains no service-role credential path', () => {
