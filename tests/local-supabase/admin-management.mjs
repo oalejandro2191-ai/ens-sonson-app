@@ -118,6 +118,19 @@ r=await admin.rpc('get_admin_vocabulary_v1',{provided_search:'be',provided_statu
 assert.ifError(r.error);
 assert(r.data.items.some(item=>item.english==='be'));
 
+const pageOne=await admin.rpc('get_admin_vocabulary_v1',{provided_search:null,provided_status:null,provided_limit:1,provided_offset:0});
+assert.ifError(pageOne.error);
+assert.equal(pageOne.data.total,2,'catalog total must count the full filtered set, not the current page');
+assert.equal(pageOne.data.limit,1);
+assert.equal(pageOne.data.offset,0);
+assert.equal(pageOne.data.items.length,1);
+const pageTwo=await admin.rpc('get_admin_vocabulary_v1',{provided_search:null,provided_status:null,provided_limit:1,provided_offset:1});
+assert.ifError(pageTwo.error);
+assert.equal(pageTwo.data.total,2);
+assert.equal(pageTwo.data.offset,1);
+assert.equal(pageTwo.data.items.length,1);
+assert.notEqual(pageTwo.data.items[0].id,pageOne.data.items[0].id,'offset=1 must return the next catalog row');
+
 const xpAttack=await admin.from('student_stats').update({total_xp:777777}).eq('student_id',student1Row.user_id);
 assert(xpAttack.error,'institution admin must not have direct XP writes');
 const masteryAttack=await admin.from('student_word_progress').update({mastery_state:'mastered'}).eq('student_id',student1Row.user_id);
@@ -150,6 +163,7 @@ console.log(JSON.stringify({
   student_suspend_reactivate:'PASS',
   reset_authorization:'PASS',
   vocabulary_create_update_archive_restore:'PASS',
+  vocabulary_pagination_total_and_offset:'PASS',
   unused_vocabulary_delete:'PASS',
   used_vocabulary_delete_blocked:'PASS',
   direct_mastery_write_denied:'PASS',
