@@ -328,6 +328,8 @@ test.describe.serial('ENS English local StudentApp E2E',()=>{
     await expect(page.getByTestId('metric-learning')).toHaveText('2');
     await page.evaluate(()=>localStorage.clear());
     await page.reload();
+    await expect(page.getByTestId('login-page')).toBeVisible();
+    await browserLogin(page,'student4@ens.local');
     await expect(page.getByTestId('metric-learning')).toHaveText('2');
     await page.getByTestId('logout').click();
     await browserLogin(page,'student4@ens.local');
