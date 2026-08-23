@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [staging]
   push:
-    branches: [feature/local-studentapp-integration]
+    branches: [feature/local-studentapp-integration, feature/admin-portal-mvp]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ env:
 jobs:
   browser-e2e:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,7 +58,7 @@ jobs:
           set -a
           source /tmp/ens-supabase.env
           set +a
-          NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" NEXT_PUBLIC_ENS_ROUTE_CODE="A1-V3" npm run dev > /tmp/ens-next.log 2>&1 &
+          NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" NEXT_PUBLIC_ENS_ROUTE_CODE="A1-V3" NEXT_PUBLIC_APP_ENV="staging" npm run dev > /tmp/ens-next.log 2>&1 &
           echo $! > /tmp/ens-next.pid
           for i in $(seq 1 90); do
             if curl -fsS http://localhost:3000/estudiante >/dev/null; then exit 0; fi
@@ -66,23 +66,26 @@ jobs:
           done
           cat /tmp/ens-next.log
           exit 1
-      - name: Run 25 browser E2E scenarios
+      - name: Run student and institution-admin browser E2E scenarios
         shell: bash
         run: |
           set -a
           source /tmp/ens-supabase.env
           set +a
-          BASE_URL="http://localhost:3000" SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" npx playwright test tests/e2e/studentapp.spec.mjs
+          BASE_URL="http://localhost:3000" SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" npx playwright test
       - name: Preserve Next.js log
         if: always()
-        run: cp /tmp/ens-next.log artifacts/e2e/next.log || true
+        run: |
+          mkdir -p artifacts/e2e
+          cp /tmp/ens-next.log artifacts/e2e/next.log || true
       - name: Upload E2E screenshots, traces, report and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: studentapp-e2e-${{ github.run_id }}
+          name: ens-english-e2e-${{ github.run_id }}
           path: |
             artifacts/e2e
+            artifacts/admin-e2e
             playwright-report
             test-results
           if-no-files-found: warn
