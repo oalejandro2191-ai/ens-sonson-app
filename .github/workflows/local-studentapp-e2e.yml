@@ -1,0 +1,96 @@
+name: Local StudentApp E2E
+
+on:
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [feature/local-studentapp-integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENS_DB_TARGET: local-empty
+
+jobs:
+  browser-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Guard local database packaging
+        run: node --test tests/migration-boundary.test.mjs tests/repository-secrets.test.mjs
+      - name: Start isolated Supabase and create clean local database
+        shell: bash
+        run: |
+          node scripts/assemble-empty-db-bootstrap.mjs
+          supabase start
+          supabase db reset --local
+          node scripts/remove-empty-db-bootstrap.mjs
+          supabase status -o env > /tmp/ens-supabase.env
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/test_helpers.sql
+      - name: Create seven fictitious local Auth accounts
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" node tests/e2e/create-local-fixtures.mjs
+      - name: Install Playwright locally without changing lockfile
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start Next.js against Docker Supabase only
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" NEXT_PUBLIC_ENS_ROUTE_CODE="A1-V3" npm run dev > /tmp/ens-next.log 2>&1 &
+          echo $! > /tmp/ens-next.pid
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:3000/estudiante >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/ens-next.log
+          exit 1
+      - name: Run 25 browser E2E scenarios
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          BASE_URL="http://localhost:3000" SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" npx playwright test tests/e2e/studentapp.spec.mjs
+      - name: Preserve Next.js log
+        if: always()
+        run: cp /tmp/ens-next.log artifacts/e2e/next.log || true
+      - name: Upload E2E screenshots, traces, report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studentapp-e2e-${{ github.run_id }}
+          path: |
+            artifacts/e2e
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Stop isolated services
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/ens-next.pid ]; then kill $(cat /tmp/ens-next.pid) || true; fi
+          node scripts/remove-empty-db-bootstrap.mjs
+          supabase stop --no-backup

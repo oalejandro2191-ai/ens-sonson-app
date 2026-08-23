@@ -59,7 +59,8 @@ begin
   select count(*) filter(where finished_at is not null),count(*) filter(where mastery_status='mastered')
   into completed,mastered_count
   from public.student_lesson_progress where student_id=viewer and route_id=r.id;
-  select count(*) into due_count from public.student_word_progress where student_id=viewer and next_review_at<=clock_timestamp();
+  -- current_timestamp is STABLE for the transaction, matching this function's volatility.
+  select count(*) into due_count from public.student_word_progress where student_id=viewer and next_review_at<=current_timestamp;
   select * into stats from public.student_stats where student_id=viewer;
   select max(x.ts) into last_activity from (
     select max(last_activity_at) ts from public.practice_sessions where student_id=viewer and route_id=r.id
