@@ -19,14 +19,17 @@ async function apiLogin(email){
   return c;
 }
 
-async function browserLogin(page,email,pass=password){
-  const loginAlreadyVisible=await page.getByTestId('login-page').isVisible().catch(()=>false);
-  if(!loginAlreadyVisible) await page.goto('/estudiante');
+async function submitVisibleLogin(page,email,pass=password){
   await expect(page.getByTestId('login-page')).toBeVisible();
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(pass);
   await page.getByTestId('login-submit').click();
   if(pass===password) await expect(page.getByTestId('identity-chip')).toBeVisible();
+}
+
+async function browserLogin(page,email,pass=password){
+  await page.goto('/estudiante');
+  await submitVisibleLogin(page,email,pass);
 }
 
 async function active(client){
@@ -330,10 +333,11 @@ test.describe.serial('ENS English local StudentApp E2E',()=>{
     await page.evaluate(()=>localStorage.clear());
     await page.reload();
     await expect(page.getByTestId('login-page')).toBeVisible();
-    await browserLogin(page,'student4@ens.local');
+    await submitVisibleLogin(page,'student4@ens.local');
     await expect(page.getByTestId('metric-learning')).toHaveText('2');
     await page.getByTestId('logout').click();
-    await browserLogin(page,'student4@ens.local');
+    await expect(page.getByTestId('login-page')).toBeVisible();
+    await submitVisibleLogin(page,'student4@ens.local');
     await expect(page.getByTestId('metric-learning')).toHaveText('2');
     await context.close();
   });
