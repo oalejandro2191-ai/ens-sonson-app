@@ -47,7 +47,7 @@ async function answerCurrentCorrect(page){
   const value=await correctAnswer(page);
   await page.getByTestId('lesson-answer').fill(value);
   await page.getByTestId('submit-answer').click();
-  await expect(page.getByTestId('submit-answer')).toBeEnabled();
+  await expect(page.locator('.server-feedback')).toBeVisible();
 }
 
 async function answerRemaining(page){
@@ -153,6 +153,7 @@ test.describe.serial('ENS English local StudentApp E2E',()=>{
     await startLesson(page);
     await page.getByTestId('lesson-answer').fill('definitely wrong');
     await page.getByTestId('submit-answer').click();
+    await expect(page.locator('.server-feedback')).toBeVisible();
     const c=await apiLogin('student1@ens.local');
     const s=await active(c);
     expect(s.attempts).toHaveLength(2);
