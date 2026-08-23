@@ -25,6 +25,7 @@ const expectedIncremental = new Set([
   '20260822000002_student_read_api.sql',
   '20260822000003_fix_valid_review_spacing.sql',
   '20260822000004_active_route_session_recovery.sql',
+  '20260822000005_admin_portal_read_api.sql',
 ]);
 
 function walk(path, files = []) {
@@ -53,7 +54,7 @@ test('empty database baseline is physically outside incremental migrations', () 
   assert(existsSync(bootstrap), 'empty-database bootstrap missing');
   assert(existsSync(readme), 'bootstrap boundary README missing');
   assert.match(readFileSync(readme, 'utf8'), /EMPTY DATABASE BOOTSTRAP ONLY/);
-  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql')));
+  assert(!existsSync(join(migrationsDir, '20260822000000_local_pilot_baseline.sql'));
   assert(!existsSync(join(migrationsDir, '00000000000000_EMPTY_DATABASE_BOOTSTRAP_ONLY.sql')), 'ephemeral bootstrap must never be committed');
 });
 
@@ -69,6 +70,14 @@ test('active-session candidate has an explicit rollback outside migrations', () 
   const source = readFileSync(rollback, 'utf8');
   assert.match(source, /drop function if exists public\.get_my_active_route_session_v1\(text\)/i);
   assert.match(source, /create or replace function public\.start_route_lesson_session_v1/i);
+});
+
+test('admin portal read candidate has an explicit rollback outside migrations', () => {
+  const rollback = join(rollbackDir, '20260822000005_admin_portal_read_api.rollback.sql');
+  assert(existsSync(rollback), 'admin portal read rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /drop function if exists public\.get_my_admin_portal_v1\(\)/i);
+  assert.match(source, /drop function if exists private\.require_institution_admin\(\)/i);
 });
 
 test('browser source contains no service-role credential path', () => {
