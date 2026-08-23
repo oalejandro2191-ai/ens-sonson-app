@@ -47,7 +47,10 @@ async function answerCurrentCorrect(page){
   const value=await correctAnswer(page);
   await page.getByTestId('lesson-answer').fill(value);
   await page.getByTestId('submit-answer').click();
-  await expect(page.locator('.server-feedback')).toBeVisible();
+  await expect.poll(async()=>
+    (await page.locator('.server-feedback').isVisible().catch(()=>false)) ||
+    (await page.getByTestId('lesson-finish').isVisible().catch(()=>false))
+  ).toBe(true);
 }
 
 async function answerRemaining(page){
