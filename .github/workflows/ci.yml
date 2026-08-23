@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, staging]
   push:
-    branches: [staging, feature/local-studentapp-integration]
+    branches: [staging, feature/local-studentapp-integration, feature/admin-portal-mvp]
 
 permissions:
   contents: write
