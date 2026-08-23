@@ -31,3 +31,6 @@ enabled = false
 [storage]
 enabled = true
 file_size_limit = "10MiB"
+
+[functions.admin-student-access]
+verify_jwt = true
