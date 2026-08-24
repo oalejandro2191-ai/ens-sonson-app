@@ -1,6 +1,7 @@
 -- ENS English — secure manual student provisioning for institution_admin.
 -- Auth account creation remains server-side in an Edge Function. These RPCs
 -- validate institution/group scope and provision only an already-created Auth user.
+-- A newly created student is pending_activation until the activation flow is completed.
 
 create or replace function public.admin_validate_student_creation_v1(
   provided_full_name text,
@@ -87,7 +88,7 @@ begin
   values(target_user_id,target_school,'student',name_value);
 
   insert into private.institution_memberships(school_id,user_id,role,status)
-  values(target_school,target_user_id,'student','active');
+  values(target_school,target_user_id,'student','pending_activation');
 
   insert into public.group_members(group_id,student_id,status,joined_at)
   values(target_group_id,target_user_id,'active',clock_timestamp());
@@ -102,6 +103,7 @@ begin
     'email',target_email,
     'group_id',target_group_id,
     'group_name',group_name,
+    'status','pending_activation',
     'source','manual_admin'
   ));
 
@@ -109,7 +111,7 @@ begin
     'user_id',target_user_id,
     'full_name',name_value,
     'email',target_email,
-    'status','active',
+    'status','pending_activation',
     'group_id',target_group_id,
     'group_name',group_name
   );
