@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./brand-polish.css";
 
 const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
 export const metadata: Metadata = {
   title: isStaging ? "ENS English — Staging Alpha" : "ENS English",
-  description: "ENS English vocabulary learning platform.",
+  description: "Plataforma institucional para el aprendizaje de inglés de la Escuela Normal Superior de Sonsón.",
   manifest: "/manifest.webmanifest",
 };
 
