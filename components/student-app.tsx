@@ -135,6 +135,17 @@ function roleLabel(role: string | null) {
   return "No disponible";
 }
 
+function studentInitials(name: string | null) {
+  const parts = (name ?? "Estudiante").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "E";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function routeLevel(code: string | null | undefined) {
+  return code?.split("-")[0] ?? "A1";
+}
+
 function taskKey(task: Pick<LessonTask, "word_id" | "activity_type">) {
   return `${task.word_id}:${task.activity_type}`;
 }
@@ -162,10 +173,10 @@ function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSign
   return (
     <main className="login-page" data-testid="login-page">
       <section className="panel login-card">
-        <div className="brand login-brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={26} /></div><div><strong>ENS English</strong><span>Supabase local</span></div></div>
+        <div className="brand login-brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={26} /></div><div><strong>ENS English</strong><span>Escuela Normal Superior</span></div></div>
         <span className="eyebrow">ACCESO INSTITUCIONAL</span>
         <h1>Iniciar sesión</h1>
-        <p>La sesión y la identidad se validan en el backend local.</p>
+        <p>Ingresa con tu cuenta para continuar tu ruta de aprendizaje.</p>
         <form onSubmit={submit} className="login-form">
           <label>Usuario<input data-testid="login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
           <label>Contraseña<input data-testid="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
@@ -179,21 +190,82 @@ function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSign
 }
 
 function EmptyPanel({ title, detail = "Sin progreso registrado" }: { title: string; detail?: string }) {
-  return <section className="panel empty-state"><span className="eyebrow">BACKEND LOCAL</span><h2>{title}</h2><p>{detail}</p></section>;
+  return <section className="panel empty-state"><span className="eyebrow">ENS ENGLISH</span><h2>{title}</h2><p>{detail}</p></section>;
 }
 
-function IdentityPanel({ identity }: { identity: IdentityView }) {
+function IdentityPanel({
+  identity,
+  dashboard = null,
+  states = null,
+}: {
+  identity: IdentityView;
+  dashboard?: Dashboard | null;
+  states?: WordStates | null;
+}) {
+  const name = identity.portal.display_alias ?? "Estudiante";
+  const level = routeLevel(dashboard?.route.code);
+  const routePercent = dashboard?.route.traversed_percentage ?? null;
+  const completedLessons = dashboard?.route.completed ?? null;
+  const totalLessons = dashboard?.route.lesson_count ?? null;
+
   return (
-    <section className="panel profile-panel" data-testid="identity-panel">
-      <span className="eyebrow">IDENTIDAD REAL DEL BACKEND</span>
-      <h2>{identity.portal.display_alias ?? "No disponible"}</h2>
-      <dl className="profile-grid">
-        <div><dt>Rol</dt><dd>{roleLabel(identity.portal.institution_role)}</dd></div>
-        <div><dt>Institución</dt><dd>{identity.institution ?? "No disponible"}</dd></div>
-        <div><dt>Grado</dt><dd>{identity.grade ?? "Pendiente de asignación"}</dd></div>
-        <div><dt>Grupo</dt><dd>{identity.group ?? "Pendiente de asignación"}</dd></div>
-      </dl>
-    </section>
+    <div className="student-profile-page" data-testid="identity-panel">
+      <section className="panel student-profile-hero">
+        <div className="student-profile-avatar" aria-hidden="true">{studentInitials(name)}</div>
+        <div className="student-profile-heading">
+          <span className="eyebrow">MI PERFIL</span>
+          <h2>{name}</h2>
+          <p>{identity.grade ?? "Grado pendiente"}{identity.group ? ` · ${identity.group}` : ""}</p>
+          <div className="student-profile-badges">
+            <span>{roleLabel(identity.portal.institution_role)}</span>
+            {dashboard ? <span>Ruta {level}</span> : null}
+          </div>
+        </div>
+        {dashboard ? (
+          <div className="student-profile-route">
+            <div className="student-profile-route-head"><span>Avance de la ruta</span><strong>{routePercent}%</strong></div>
+            <div className="student-profile-route-track" aria-label={`Ruta completada ${routePercent}%`}><span style={{ width: `${Math.max(0, Math.min(100, routePercent ?? 0))}%` }} /></div>
+            <small>{completedLessons} de {totalLessons} lecciones completadas</small>
+          </div>
+        ) : null}
+      </section>
+
+      {dashboard ? (
+        <section className="student-profile-metrics" aria-label="Resumen de progreso">
+          <article className="panel student-profile-metric"><span className="profile-metric-icon">⚡</span><div><strong>{dashboard.xp}</strong><small>XP acumulado</small></div></article>
+          <article className="panel student-profile-metric"><span className="profile-metric-icon">🪙</span><div><strong>{dashboard.credits}</strong><small>Monedas</small></div></article>
+          <article className="panel student-profile-metric"><span className="profile-metric-icon">🔥</span><div><strong>{dashboard.streak}</strong><small>Días de racha</small></div></article>
+          <article className="panel student-profile-metric"><span className="profile-metric-icon">📘</span><div><strong>{completedLessons}/{totalLessons}</strong><small>Lecciones</small></div></article>
+        </section>
+      ) : null}
+
+      <section className="student-profile-columns">
+        <article className="panel student-profile-card">
+          <span className="eyebrow">MIS DATOS</span>
+          <h3>Información académica</h3>
+          <dl className="profile-grid student-profile-info-grid">
+            <div><dt>Institución</dt><dd>{identity.institution ?? "No disponible"}</dd></div>
+            <div><dt>Grado</dt><dd>{identity.grade ?? "Pendiente de asignación"}</dd></div>
+            <div><dt>Grupo</dt><dd>{identity.group ?? "Pendiente de asignación"}</dd></div>
+            <div><dt>Rol</dt><dd>{roleLabel(identity.portal.institution_role)}</dd></div>
+          </dl>
+        </article>
+
+        {dashboard && states ? (
+          <article className="panel student-profile-card student-learning-card">
+            <span className="eyebrow">MI APRENDIZAJE</span>
+            <h3>Vocabulario</h3>
+            <div className="student-learning-summary">
+              <div><strong>{states.mastered}</strong><span>Palabras dominadas</span></div>
+              <div><strong>{states.learning}</strong><span>En aprendizaje</span></div>
+              <div><strong>{states.review}</strong><span>En revisión</span></div>
+              <div><strong>{dashboard.due_review_words}</strong><span>Por repasar</span></div>
+            </div>
+            <Link className="secondary-button student-profile-action" href="/estudiante/progreso">Ver mi progreso</Link>
+          </article>
+        ) : null}
+      </section>
+    </div>
   );
 }
 
@@ -202,24 +274,24 @@ function DashboardPanel({ dashboard, states }: { dashboard: Dashboard; states: W
     <div data-testid="student-dashboard">
       <section className="hero panel">
         <div>
-          <span className="eyebrow">PROGRESO ACADÉMICO REAL</span>
-          <h2>{dashboard.display_alias ?? "No disponible"}</h2>
-          <p>{dashboard.group ? `${dashboard.group.grade ?? "Grado pendiente"} · ${dashboard.group.name}` : "Pendiente de asignación"}</p>
+          <span className="eyebrow">TU PROGRESO</span>
+          <h2>¡Hola, {dashboard.display_alias ?? "estudiante"}!</h2>
+          <p>{dashboard.group ? `${dashboard.group.grade ?? "Grado pendiente"} · ${dashboard.group.name}` : "Continúa avanzando en tu ruta de inglés."}</p>
         </div>
-        <div className="metric-placeholder"><span>PALABRAS DOMINADAS</span><strong data-testid="metric-mastered">{states.mastered}</strong><small>Estado actual en Supabase</small></div>
+        <div className="metric-placeholder"><span>PALABRAS DOMINADAS</span><strong data-testid="metric-mastered">{states.mastered}</strong><small>Lo que ya has consolidado</small></div>
       </section>
       <section className="metric-grid">
         <article className="panel metric-card"><span>En aprendizaje</span><strong data-testid="metric-learning">{states.learning}</strong></article>
         <article className="panel metric-card"><span>En revisión</span><strong data-testid="metric-review">{states.review}</strong></article>
-        <article className="panel metric-card"><span>Revisiones vencidas</span><strong data-testid="metric-due">{dashboard.due_review_words}</strong></article>
+        <article className="panel metric-card"><span>Por repasar</span><strong data-testid="metric-due">{dashboard.due_review_words}</strong></article>
         <article className="panel metric-card"><span>Ruta completada</span><strong>{dashboard.route.traversed_percentage}%</strong></article>
       </section>
       <section className="panel route-card">
-        <div><span className="eyebrow">RUTA {dashboard.route.code}</span><h3>{dashboard.current_lesson?.title ?? "Sin lección pendiente"}</h3><p>{dashboard.current_lesson?.purpose ?? "Sin progreso registrado"}</p></div>
+        <div><span className="eyebrow">RUTA {routeLevel(dashboard.route.code)}</span><h3>{dashboard.current_lesson?.title ?? "Ruta al día"}</h3><p>{dashboard.current_lesson?.purpose ?? "No tienes una lección pendiente en este momento."}</p></div>
         {dashboard.current_lesson ? <Link className="primary-button" data-testid="continue-lesson" href="/estudiante/aprender">Continuar lección</Link> : null}
       </section>
       <section className="secondary-stats" aria-label="Datos motivacionales secundarios">
-        <span>Racha: {dashboard.streak}</span><span>XP: {dashboard.xp}</span><span>Monedas: {dashboard.credits}</span>
+        <span>🔥 Racha: {dashboard.streak}</span><span>⚡ XP: {dashboard.xp}</span><span>🪙 Monedas: {dashboard.credits}</span>
       </section>
     </div>
   );
@@ -228,7 +300,7 @@ function DashboardPanel({ dashboard, states }: { dashboard: Dashboard; states: W
 function ProgressPanel({ progress }: { progress: RouteProgress }) {
   return (
     <section className="panel progress-panel" data-testid="route-progress">
-      <span className="eyebrow">PROGRESO DE RUTA {progress.route_code}</span>
+      <span className="eyebrow">PROGRESO DE RUTA {routeLevel(progress.route_code)}</span>
       <div className="lesson-list">
         {progress.lessons.length === 0 ? <p>Sin progreso registrado</p> : progress.lessons.map((lesson) => (
           <article key={lesson.lesson_id} className="lesson-row"><strong>Lección {lesson.position}</strong><span>{lesson.status}</span><span>{lesson.best_percentage}%</span></article>
@@ -358,19 +430,19 @@ function LessonPanel({
   }
 
   if (result) {
-    return <section className="panel lesson-result" data-testid="lesson-result"><span className="eyebrow">RESULTADO DEL SERVIDOR</span><h2>{result.correct}/{result.total}</h2><p>{result.percentage}% · {result.mastered ? "Lección dominada" : "Necesita repaso"}</p><button className="primary-button" type="button" onClick={() => router.push("/estudiante")}>Volver al dashboard</button></section>;
+    return <section className="panel lesson-result" data-testid="lesson-result"><span className="eyebrow">RESULTADO</span><h2>{result.correct}/{result.total}</h2><p>{result.percentage}% · {result.mastered ? "Lección dominada" : "Necesita repaso"}</p><button className="primary-button" type="button" onClick={() => router.push("/estudiante")}>Volver al inicio</button></section>;
   }
 
   if (!session) {
-    return <section className="panel lesson-start" data-testid="lesson-start"><span className="eyebrow">LECCIÓN REAL</span><h2>{dashboard.current_lesson?.title ?? "Sin lección pendiente"}</h2><p>La sesión se inicia o recupera desde Supabase. El navegador no calcula dominio ni recompensas.</p>{error ? <div className="form-error">{error}</div> : null}{dashboard.current_lesson ? <button data-testid="start-lesson" className="primary-button" type="button" onClick={startOrRecover}>Iniciar o recuperar</button> : null}</section>;
+    return <section className="panel lesson-start" data-testid="lesson-start"><span className="eyebrow">SIGUIENTE LECCIÓN</span><h2>{dashboard.current_lesson?.title ?? "Sin lección pendiente"}</h2><p>{dashboard.current_lesson?.purpose ?? "Continúa tu ruta de aprendizaje a tu ritmo."}</p>{error ? <div className="form-error">{error}</div> : null}{dashboard.current_lesson ? <button data-testid="start-lesson" className="primary-button" type="button" onClick={startOrRecover}>Comenzar lección</button> : null}</section>;
   }
 
   if (allConfirmed) {
-    return <section className="panel lesson-finish" data-testid="lesson-finish"><span className="eyebrow">TODAS LAS ACTIVIDADES CONFIRMADAS</span><h2>Listo para finalizar</h2><p>{session.confirmed_count}/{session.expected_count} respuestas confirmadas por servidor.</p><button data-testid="complete-lesson" className="primary-button" type="button" disabled={sending} onClick={complete}>{sending ? "Finalizando…" : "Finalizar lección"}</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir sin finalizar</button></section>;
+    return <section className="panel lesson-finish" data-testid="lesson-finish"><span className="eyebrow">LECCIÓN COMPLETADA</span><h2>¡Listo para finalizar!</h2><p>Completaste {session.confirmed_count} de {session.expected_count} actividades.</p><button data-testid="complete-lesson" className="primary-button" type="button" disabled={sending} onClick={complete}>{sending ? "Finalizando…" : "Finalizar lección"}</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir sin finalizar</button></section>;
   }
 
   if (!currentTask && pendingOmitted.length > 0) {
-    return <section className="panel lesson-finish"><span className="eyebrow">ACTIVIDADES OMITIDAS PENDIENTES</span><h2>La lección aún no puede finalizar</h2><p>Omitir no crea intento ni error. Estas {pendingOmitted.length} actividades siguen pendientes.</p><button className="primary-button" type="button" onClick={() => setOmitted(new Set())}>Retomar omitidas</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir</button></section>;
+    return <section className="panel lesson-finish"><span className="eyebrow">TE QUEDAN ACTIVIDADES</span><h2>Aún no has terminado</h2><p>Tienes {pendingOmitted.length} {pendingOmitted.length === 1 ? "actividad pendiente" : "actividades pendientes"}. Puedes retomarlas para completar la lección.</p><button className="primary-button" type="button" onClick={() => setOmitted(new Set())}>Retomar actividades</button><button data-testid="exit-lesson" className="secondary-button" type="button" onClick={() => router.push("/estudiante")}>Salir</button></section>;
   }
 
   if (!currentTask) return <EmptyPanel title="No hay actividad disponible" />;
@@ -501,7 +573,7 @@ export function StudentApp({ section }: { section: string[] }) {
     setSignedIn(false);
   }
 
-  if (!supabase) return <EmptyPanel title="Supabase local no configurado" />;
+  if (!supabase) return <EmptyPanel title="Servicio de aprendizaje no disponible" detail="No fue posible conectar la aplicación en este momento." />;
   if (!ready) return <main className="loading-page"><RefreshCw className="spin" /> Cargando sesión…</main>;
   if (!signedIn) return <LoginPanel supabase={supabase} onSignedIn={loadIdentity} />;
 
@@ -511,24 +583,24 @@ export function StudentApp({ section }: { section: string[] }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={24} /></div><div><strong>ENS English</strong><span>Local · Supabase</span></div></div>
+        <div className="brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={24} /></div><div><strong>ENS English</strong><span>English Lab</span></div></div>
         <nav aria-label="Navegación del estudiante">{navigation.map(({ key, label, icon: Icon }) => <Link key={key} href={routeFor(key)} className={`nav-link ${active === key ? "active" : ""}`}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>)}</nav>
-        <div className="staging-note">Sesión real local · sin datos de producción</div>
+        <div className="staging-note">Practica · aprende · avanza</div>
       </aside>
       <main className="main-content">
         <header className="topbar">
-          <div><span className="eyebrow">ENS ENGLISH · LOCAL</span><h1>{title}</h1></div>
-          {identity ? <div className="topbar-actions"><div className="identity-chip" data-testid="identity-chip"><div className="initials">{(identity.portal.display_alias ?? "ND").slice(0,2).toUpperCase()}</div><div><strong>{identity.portal.display_alias ?? "No disponible"}</strong><span>{roleLabel(identity.portal.institution_role)}</span></div></div><button data-testid="logout" className="icon-button" type="button" aria-label="Cerrar sesión" onClick={signOut}><LogOut size={19} /></button></div> : null}
+          <div><span className="eyebrow">ENS ENGLISH</span><h1>{title}</h1></div>
+          {identity ? <div className="topbar-actions"><div className="identity-chip" data-testid="identity-chip"><div className="initials">{studentInitials(identity.portal.display_alias)}</div><div><strong>{identity.portal.display_alias ?? "No disponible"}</strong><span>{roleLabel(identity.portal.institution_role)}</span></div></div><button data-testid="logout" className="icon-button" type="button" aria-label="Cerrar sesión" onClick={signOut}><LogOut size={19} /></button></div> : null}
         </header>
         {error ? <div className="form-error page-error" role="alert">{error}</div> : null}
-        {loading && identity ? <div className="sync-note"><RefreshCw className="spin" size={14} /> Actualizando sesión…</div> : null}
+        {loading && identity ? <div className="sync-note"><RefreshCw className="spin" size={14} /> Actualizando…</div> : null}
 
         {!isStudent && identity ? <div data-testid="role-home"><IdentityPanel identity={identity} /><EmptyPanel title="Acceso académico de estudiante no habilitado" detail="Este rol puede autenticarse, pero no puede iniciar lecciones como estudiante." /></div> : null}
         {isStudent && identity && active === "inicio" && dashboard ? <DashboardPanel dashboard={dashboard} states={wordStates} /> : null}
-        {isStudent && identity && active === "perfil" ? <IdentityPanel identity={identity} /> : null}
+        {isStudent && identity && active === "perfil" ? <IdentityPanel identity={identity} dashboard={dashboard} states={dashboard ? wordStates : null} /> : null}
         {isStudent && active === "progreso" && routeProgress ? <ProgressPanel progress={routeProgress} /> : null}
         {isStudent && active === "aprender" && dashboard ? <LessonPanel supabase={supabase} dashboard={dashboard} onAcademicChange={loadStudentData} /> : null}
-        {isStudent && (active === "jugar" || active === "companeros") ? <EmptyPanel title={title} detail="Sin progreso registrado para este módulo." /> : null}
+        {isStudent && (active === "jugar" || active === "companeros") ? <EmptyPanel title={title} detail="Este espacio aún no tiene actividad disponible." /> : null}
         {isStudent && active === "inicio" && !dashboard && !loading ? <EmptyPanel title="Sin progreso registrado" /> : null}
 
         <footer>Sistema creado por Oscar Alejandro Gil Valencia</footer>
