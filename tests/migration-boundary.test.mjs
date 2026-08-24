@@ -31,6 +31,7 @@ const expectedIncremental = new Set([
   '20260823000008_admin_access_reset_api.sql',
   '20260823000009_admin_vocabulary_pagination.sql',
   '20260823000010_admin_student_provisioning.sql',
+  '20260824000011_accepted_spanish_translations.sql',
 ]);
 
 function walk(path, files = []) {
@@ -128,6 +129,15 @@ test('admin student provisioning candidate has an explicit non-destructive rollb
   assert.match(source, /drop function if exists public\.admin_provision_created_student_v1\(uuid,text,uuid\)/i);
   assert.match(source, /drop function if exists public\.admin_validate_student_creation_v1\(text,text,uuid\)/i);
   assert.doesNotMatch(source, /delete\s+from\s+auth\.users/i, 'rollback must never delete provisioned accounts');
+});
+
+test('accepted Spanish translations candidate has a non-destructive functional rollback', () => {
+  const rollback = join(rollbackDir, '20260824000011_accepted_spanish_translations.rollback.sql');
+  assert(existsSync(rollback), 'accepted Spanish translations rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /create or replace function public\.record_route_lesson_attempt_v1/i);
+  assert.match(source, /expected:=jsonb_build_array\(w\.spanish\)/i);
+  assert.doesNotMatch(source, /drop column\s+accepted_translations/i, 'rollback must preserve curated translation aliases');
 });
 
 test('browser source contains no service-role credential path', () => {
