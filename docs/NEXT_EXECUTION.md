@@ -67,12 +67,24 @@ Validated against Staging using fictitious identities / rollback transactions on
 - Previous READY deployment `dpl_HspUBV1k71eJdqTLi6PxLUXcBWPb` remains the immediate rollback candidate; older candidate `dpl_5e7hjsfUKkk4voTQnhGNu2hkZu2J` also remains available.
 - Production Vercel project `prj_u9bB5CwLOIWtyWdSA7LKRfzBRj5r` was not touched.
 
+## EXISTING 531 LEARNING UNITS — SOURCE BOUNDARY CONFIRMED
+
+- Historical read-only audit evidence identifies production Supabase `pgdoxpcwtqjbmqvzihhs` as the authoritative location of the existing 531 Learning Units.
+- Confirmed historical distribution: 482 `word`, 22 `chunk`, 13 `phrasal_verb`, 10 `expression`, 4 `command`; 13 collections.
+- Historical A1 material organizes 275 assignments across the 13 collections / approximately 52 lessons; the remaining 266 units are part of the vocabulary bank and were intentionally not added to that A1 route at that stage.
+- The canonical GitHub repository does **not** contain a complete versioned copy of those 531 rows.
+- `legacy/static-20260819` contains frontend code that queried production tables `vocabulary_collections`, `collection_words` and nested `vocabulary_words`; it does not contain the corpus itself.
+- `baseline/stabilization-v1` contains no vocabulary seed/corpus; its Supabase migration set is infrastructure/security only.
+- File Library search found historical audit/specification documents confirming the counts and model, but no complete row-level export suitable for a real deduplication/quality audit.
+- Therefore, a word-by-word audit or 531 -> 1000 expansion must **not** proceed from reconstructed guesses. A non-production export/copy of the authoritative vocabulary rows is required first.
+- Do not query production to obtain that corpus while the current `production untouched` constraint remains in force.
+
 ## NEXT EXACT WORK
 
-1. Exercise `admin-student-create` through an authenticated fictitious `institution_admin` session in Staging and verify `pending_activation`, correct group, zero stats and audit; do not use real users.
-2. If that smoke is green, freeze the Admin Portal MVP checkpoint; no further admin scope expansion yet.
-3. Identify the authoritative source of the existing ~531 Learning Units without touching production data or inventing a corpus.
-4. Audit/de-duplicate that source before any expansion.
-5. Expand in controlled, reviewable batches toward the ENS English 1K catalog; do not add the remaining units in one bulk jump.
+1. Exercise `admin-student-create` through an authenticated fictitious `institution_admin` session in Staging and verify `pending_activation`, correct group, zero stats and audit; do not use real users. If credentials are not safely available to the automation, keep this evidence level pending rather than bypassing Auth.
+2. Freeze the Admin Portal MVP after that smoke, with no additional admin scope expansion.
+3. Obtain a **non-production export/copy** of the authoritative 531 Learning Units. Do not reconstruct them from counts and do not read production while the production-freeze rule is active.
+4. On that copy, audit exact rows for duplicates, normalized English collisions, translation quality, accepted forms, unit types, categories/collections, route references, status, examples and orphan/reference risks.
+5. Only after the 531-row baseline is certified, design controlled batches toward ENS English 1K; never add the remaining units in one bulk jump.
 
 Do not modify `main`, Git branch `staging`, production Supabase, production Vercel, real roster, or real users.
