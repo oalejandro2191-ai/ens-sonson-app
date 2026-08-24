@@ -117,7 +117,7 @@ Deno.serve(async (request) => {
     email: validation.data.email,
     group_id: validation.data.group_id,
     group_name: validation.data.group_name,
-    status: "active",
+    status: "pending_activation",
     temporary_password: temporaryPassword,
     must_change_password: true,
   });
