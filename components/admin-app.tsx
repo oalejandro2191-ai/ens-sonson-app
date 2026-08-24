@@ -158,7 +158,7 @@ function AdminLogin({ supabase }: { supabase: SupabaseClient }) {
       <div className="brand login-brand"><div className="brand-mark"><ShieldCheck size={24} /></div><div><strong>ENS English</strong><span>Portal institucional Staging Alpha</span></div></div>
       <span className="eyebrow">ACCESO PRIVADO · STAGING</span>
       <h1>Administración</h1>
-      <p>El acceso se valida nuevamente en Supabase y exige el rol institution_admin.</p>
+      <p>Ingrese con su cuenta administrativa institucional.</p>
       <form className="login-form" onSubmit={submit}>
         <label>Correo<input data-testid="admin-login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
         <label>Contraseña<input data-testid="admin-login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
@@ -224,7 +224,7 @@ export default function AdminApp() {
     setGroups((result.data ?? []) as AdminGroup[]);
   }, [supabase]);
 
-  const loadStudents = useCallback(async (search = studentSearch, groupId = studentGroupFilter) => {
+  const loadStudents = useCallback(async (search = "", groupId = "") => {
     if (!supabase) return;
     const result = await supabase.rpc("get_admin_students_v1", {
       provided_search: search.trim() || null,
@@ -232,9 +232,9 @@ export default function AdminApp() {
     });
     if (result.error) throw result.error;
     setStudents((result.data ?? []) as AdminStudent[]);
-  }, [studentGroupFilter, studentSearch, supabase]);
+  }, [supabase]);
 
-  const loadVocabulary = useCallback(async (search = vocabSearch, status = vocabStatus) => {
+  const loadVocabulary = useCallback(async (search = "", status = "") => {
     if (!supabase) return;
     const result = await supabase.rpc("get_admin_vocabulary_v1", {
       provided_search: search.trim() || null,
@@ -244,7 +244,7 @@ export default function AdminApp() {
     });
     if (result.error) throw result.error;
     setVocabulary((result.data ?? { total: 0, items: [] }) as VocabularyResult);
-  }, [supabase, vocabSearch, vocabStatus]);
+  }, [supabase]);
 
   const loadAudit = useCallback(async () => {
     if (!supabase) return;
@@ -326,7 +326,7 @@ export default function AdminApp() {
     const result = await supabase.rpc("admin_set_student_status_v1", { target_user_id: student.user_id, provided_status: status });
     if (result.error) { setError(result.error.message); return; }
     setNotice(`Estado actualizado a ${status.replaceAll("_", " ")}.`);
-    await Promise.all([loadStudents(), loadPortal(), loadAudit()]);
+    await Promise.all([loadStudents(studentSearch, studentGroupFilter), loadPortal(), loadAudit()]);
   }
 
   async function assignStudentGroup(student: AdminStudent) {
@@ -337,7 +337,7 @@ export default function AdminApp() {
     const result = await supabase.rpc("admin_assign_student_group_v1", { target_user_id: student.user_id, target_group_id: targetGroup });
     if (result.error) { setError(result.error.message); return; }
     setNotice("Grupo del estudiante actualizado.");
-    await Promise.all([loadStudents(), loadGroups(), loadAudit()]);
+    await Promise.all([loadStudents(studentSearch, studentGroupFilter), loadGroups(), loadAudit()]);
   }
 
   async function resetStudentAccess(student: AdminStudent) {
@@ -384,7 +384,7 @@ export default function AdminApp() {
     if (result.error) { setError(result.error.message); return; }
     setVocabForm(emptyVocabularyForm);
     setNotice(vocabForm.id ? "Learning Unit actualizada y auditada." : "Learning Unit creada y auditada.");
-    await Promise.all([loadVocabulary(), loadPortal(), loadAudit()]);
+    await Promise.all([loadVocabulary(vocabSearch, vocabStatus), loadPortal(), loadAudit()]);
   }
 
   async function setVocabularyArchived(item: VocabularyItem, archive: boolean) {
@@ -393,7 +393,7 @@ export default function AdminApp() {
     const result = await supabase.rpc(archive ? "admin_archive_vocabulary_word_v1" : "admin_restore_vocabulary_word_v1", { target_word_id: item.id });
     if (result.error) { setError(result.error.message); return; }
     setNotice(archive ? "Learning Unit archivada; el historial anterior permanece intacto." : "Learning Unit restaurada.");
-    await Promise.all([loadVocabulary(), loadPortal(), loadAudit()]);
+    await Promise.all([loadVocabulary(vocabSearch, vocabStatus), loadPortal(), loadAudit()]);
   }
 
   async function deleteUnusedVocabulary(item: VocabularyItem) {
@@ -403,7 +403,7 @@ export default function AdminApp() {
     const result = await supabase.rpc("admin_delete_unused_vocabulary_word_v1", { target_word_id: item.id });
     if (result.error) { setError(result.error.message); return; }
     setNotice("Learning Unit sin historial eliminada definitivamente.");
-    await Promise.all([loadVocabulary(), loadPortal(), loadAudit()]);
+    await Promise.all([loadVocabulary(vocabSearch, vocabStatus), loadPortal(), loadAudit()]);
   }
 
   if (!supabase) return <main className="loading-page">Supabase no configurado.</main>;
@@ -453,7 +453,7 @@ export default function AdminApp() {
 
       {tab === "inicio" ? <>
         <section className="panel hero" data-testid="admin-profile">
-          <div><span className="eyebrow">PERFIL DEL DOCENTE-ADMINISTRADOR</span><h2>{labelOrPending(profile.full_name)}</h2><p>La identidad, institución y autorización provienen del backend. El navegador nunca concede privilegios administrativos.</p>
+          <div><span className="eyebrow">PERFIL DEL DOCENTE-ADMINISTRADOR</span><h2>{labelOrPending(profile.full_name)}</h2><p>La identidad, la institución y los permisos se validan de forma segura en el servidor.</p>
             <dl className="profile-grid"><div><dt>Institución</dt><dd data-testid="admin-institution">{labelOrPending(profile.institution)}</dd></div><div><dt>Rol</dt><dd data-testid="admin-role">{profile.role}</dd></div><div><dt>Estado de cuenta</dt><dd>{labelOrPending(profile.account_status, "No configurado")}</dd></div><div><dt>Último acceso</dt><dd>{profile.last_access_at ? new Date(profile.last_access_at).toLocaleString("es-CO") : "Sin datos"}</dd></div></dl>
           </div>
           <div className="metric-placeholder"><span>Grupos asignados como docente</span><strong>{profile.assigned_groups.length}</strong><small>{profile.assigned_groups.length ? profile.assigned_groups.map((group) => group.name).join(", ") : "Sin datos"}</small></div>
@@ -474,13 +474,13 @@ export default function AdminApp() {
 
       {tab === "estudiantes" ? <section className="admin-workspace" data-testid="admin-students-module">
         {temporaryAccess ? <div className="panel temporary-access"><div><span className="eyebrow">CONTRASEÑA TEMPORAL · MOSTRAR UNA VEZ</span><h3>{temporaryAccess.name}</h3><code>{temporaryAccess.password}</code><p>Entréguela únicamente al estudiante correspondiente. La contraseña anterior ya no funciona.</p></div><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(temporaryAccess.password)}><ClipboardCopy size={16} /> Copiar</button></div> : null}
-        <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadStudents(); }}><label className="search-field"><Search size={17} /><input value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Buscar estudiante" /></label><select value={studentGroupFilter} onChange={(event) => setStudentGroupFilter(event.target.value)}><option value="">Todos los grupos</option>{activeGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select><button className="secondary-button" type="submit">Buscar</button></form>
+        <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadStudents(studentSearch, studentGroupFilter); }}><label className="search-field"><Search size={17} /><input value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Buscar estudiante" /></label><select value={studentGroupFilter} onChange={(event) => setStudentGroupFilter(event.target.value)}><option value="">Todos los grupos</option>{activeGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select><button className="secondary-button" type="submit">Buscar</button></form>
         <div className="admin-list">{students.map((student) => <article className="panel student-row" key={student.user_id}><div className="student-main"><div className="avatar-small"><UserRound size={18} /></div><div><h3>{student.full_name ?? "Sin nombre"}</h3><p>{student.grade ? `Grado ${student.grade}` : "Grado pendiente"} · {student.group_name ?? "Sin grupo"} · {student.email ?? "Sin correo"}</p><div className="inline-stats"><span>Dominadas <strong>{student.mastered}</strong></span><span>Aprendizaje <strong>{student.learning}</strong></span><span>Revisión <strong>{student.review}</strong></span><span>XP <strong>{student.xp}</strong></span></div></div></div><div className="student-side"><StatusPill status={student.status} /><small>{student.last_sign_in_at ? `Último acceso ${new Date(student.last_sign_in_at).toLocaleDateString("es-CO")}` : "Sin ingreso registrado"}</small><div className="student-group-control"><select value={studentGroupChoice[student.user_id] ?? student.group_id ?? ""} onChange={(event) => setStudentGroupChoice((previous) => ({ ...previous, [student.user_id]: event.target.value }))}><option value="">Seleccionar grupo</option>{activeGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select><button className="secondary-button compact" onClick={() => void assignStudentGroup(student)}>Mover</button></div><div className="management-actions"><button className="secondary-button" onClick={() => void resetStudentAccess(student)}><KeyRound size={16} /> Regenerar acceso</button>{student.status === "active" ? <button className="secondary-button" onClick={() => void changeStudentStatus(student, "suspended")}>Suspender</button> : <button className="secondary-button" onClick={() => void changeStudentStatus(student, "active")}><RotateCcw size={16} /> Reactivar</button>}<button className="danger-button" onClick={() => void changeStudentStatus(student, "archived")}><Archive size={16} /> Archivar</button></div></div></article>)}</div>
       </section> : null}
 
       {tab === "vocabulario" ? <section className="admin-workspace" data-testid="admin-vocabulary-module">
         <form className="panel admin-editor" onSubmit={saveVocabulary}><div className="section-heading"><div><span className="eyebrow">CATÁLOGO ÚNICO</span><h2>{vocabForm.id ? "Editar Learning Unit" : "Agregar Learning Unit"}</h2></div>{vocabForm.id ? <button type="button" className="icon-button" onClick={() => setVocabForm(emptyVocabularyForm)}><X size={18} /></button> : null}</div><div className="form-grid three"><label>Inglés<input value={vocabForm.english} onChange={(event) => setVocabForm({ ...vocabForm, english: event.target.value })} required /></label><label>Español<input value={vocabForm.spanish} onChange={(event) => setVocabForm({ ...vocabForm, spanish: event.target.value })} required /></label><label>Tipo<select value={vocabForm.unit_type} onChange={(event) => setVocabForm({ ...vocabForm, unit_type: event.target.value })}><option value="word">word</option><option value="chunk">chunk</option><option value="phrasal_verb">phrasal_verb</option><option value="expression">expression</option><option value="command">command</option></select></label><label>Formas aceptadas<input value={vocabForm.accepted_forms} onChange={(event) => setVocabForm({ ...vocabForm, accepted_forms: event.target.value })} placeholder="forma 1, forma 2" /></label><label>Categoría<input value={vocabForm.category} onChange={(event) => setVocabForm({ ...vocabForm, category: event.target.value })} /></label><label>Dificultad<input type="number" min={1} max={5} value={vocabForm.difficulty} onChange={(event) => setVocabForm({ ...vocabForm, difficulty: Number(event.target.value) })} /></label><label>Ejemplo inglés<input value={vocabForm.example_en} onChange={(event) => setVocabForm({ ...vocabForm, example_en: event.target.value })} /></label><label>Ejemplo español<input value={vocabForm.example_es} onChange={(event) => setVocabForm({ ...vocabForm, example_es: event.target.value })} /></label><label>Prioridad<input type="number" min={1} value={vocabForm.priority} onChange={(event) => setVocabForm({ ...vocabForm, priority: Number(event.target.value) })} /></label></div><button className="primary-button" type="submit"><Plus size={17} /> {vocabForm.id ? "Guardar Learning Unit" : "Agregar al catálogo"}</button></form>
-        <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadVocabulary(); }}><label className="search-field"><Search size={17} /><input value={vocabSearch} onChange={(event) => setVocabSearch(event.target.value)} placeholder="Buscar en inglés o español" /></label><select value={vocabStatus} onChange={(event) => setVocabStatus(event.target.value)}><option value="">Todos los estados</option><option value="active">Activas</option><option value="archived">Archivadas</option><option value="unpublished">No publicadas</option></select><button className="secondary-button" type="submit">Filtrar</button><span className="toolbar-count">{vocabulary.total} Learning Units</span></form>
+        <form className="panel admin-toolbar" onSubmit={(event) => { event.preventDefault(); void loadVocabulary(vocabSearch, vocabStatus); }}><label className="search-field"><Search size={17} /><input value={vocabSearch} onChange={(event) => setVocabSearch(event.target.value)} placeholder="Buscar en inglés o español" /></label><select value={vocabStatus} onChange={(event) => setVocabStatus(event.target.value)}><option value="">Todos los estados</option><option value="active">Activas</option><option value="archived">Archivadas</option><option value="unpublished">No publicadas</option></select><button className="secondary-button" type="submit">Filtrar</button><span className="toolbar-count">{vocabulary.total} Learning Units</span></form>
         <div className="vocabulary-table panel"><div className="table-head"><span>Learning Unit</span><span>Tipo / categoría</span><span>Uso</span><span>Estado</span><span>Acciones</span></div>{vocabulary.items.map((item) => <div className="table-row" key={item.id}><div><strong>{item.english}</strong><small>{item.spanish}</small><small>{item.unit_code}</small></div><div><span>{item.unit_type}</span><small>{item.category}</small></div><div><span>{item.lesson_refs} lecciones</span><small>{item.attempt_refs} intentos · {item.progress_refs} progresos</small></div><div><StatusPill status={item.status} /></div><div className="table-actions"><button title="Editar" className="icon-button" onClick={() => editVocabulary(item)}><Pencil size={16} /></button>{item.status === "archived" ? <button title="Restaurar" className="icon-button" onClick={() => void setVocabularyArchived(item, false)}><RotateCcw size={16} /></button> : <button title="Archivar" className="icon-button" onClick={() => void setVocabularyArchived(item, true)}><Archive size={16} /></button>}<button title="Eliminar si nunca se usó" className="icon-button danger-icon" disabled={item.lesson_refs + item.attempt_refs + item.progress_refs > 0} onClick={() => void deleteUnusedVocabulary(item)}><Trash2 size={16} /></button></div></div>)}</div>
       </section> : null}
 
