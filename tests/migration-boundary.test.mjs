@@ -30,6 +30,7 @@ const expectedIncremental = new Set([
   '20260823000007_admin_management_mvp.sql',
   '20260823000008_admin_access_reset_api.sql',
   '20260823000009_admin_vocabulary_pagination.sql',
+  '20260823000010_admin_student_provisioning.sql',
 ]);
 
 function walk(path, files = []) {
@@ -118,6 +119,15 @@ test('admin vocabulary pagination candidate has an explicit rollback', () => {
   assert.match(source, /create or replace function public\.get_admin_vocabulary_v1/i);
   assert.match(source, /provided_limit integer default 100/i);
   assert.match(source, /provided_offset integer default 0/i);
+});
+
+test('admin student provisioning candidate has an explicit non-destructive rollback', () => {
+  const rollback = join(rollbackDir, '20260823000010_admin_student_provisioning.rollback.sql');
+  assert(existsSync(rollback), 'admin student provisioning rollback missing');
+  const source = readFileSync(rollback, 'utf8');
+  assert.match(source, /drop function if exists public\.admin_provision_created_student_v1\(uuid,text,uuid\)/i);
+  assert.match(source, /drop function if exists public\.admin_validate_student_creation_v1\(text,text,uuid\)/i);
+  assert.doesNotMatch(source, /delete\s+from\s+auth\.users/i, 'rollback must never delete provisioned accounts');
 });
 
 test('browser source contains no service-role credential path', () => {
