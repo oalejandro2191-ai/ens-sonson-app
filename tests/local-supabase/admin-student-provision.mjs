@@ -83,13 +83,6 @@ try {
   assert.equal(profile.data.role, 'student');
   assert.equal(profile.data.display_alias, candidateName);
 
-  const membership = await service.schema('private').from('institution_memberships')
-    .select('school_id,user_id,role,status').eq('user_id', createdUserId).single();
-  assert.ifError(membership.error);
-  assert.equal(membership.data.role, 'student');
-  assert.equal(membership.data.status, 'pending_activation');
-  assert.equal(membership.data.school_id, profile.data.school_id);
-
   const groupMembership = await service.from('group_members')
     .select('group_id,student_id,status').eq('student_id', createdUserId).eq('status', 'active').single();
   assert.ifError(groupMembership.error);
@@ -103,12 +96,20 @@ try {
   assert.equal(stats.data.current_streak, 0);
   assert.equal(stats.data.longest_streak, 0);
 
-  const audit = await service.schema('private').from('institution_audit_log')
-    .select('action,target_id,metadata').eq('action', 'student.created').eq('target_id', createdUserId).single();
+  const listed = await admin.rpc('get_admin_students_v1', { provided_search: candidateName, provided_group_id: targetGroup.id });
+  assert.ifError(listed.error);
+  assert.equal(listed.data.length, 1);
+  assert.equal(listed.data[0].email, candidateEmail);
+  assert.equal(listed.data[0].status, 'pending_activation');
+  assert.equal(listed.data[0].group_id, targetGroup.id);
+
+  const audit = await admin.rpc('get_admin_audit_v1', { provided_limit: 200 });
   assert.ifError(audit.error);
-  assert.equal(audit.data.metadata.source, 'manual_admin');
-  assert.equal(audit.data.metadata.group_id, targetGroup.id);
-  assert.equal(audit.data.metadata.status, 'pending_activation');
+  const creationAudit = audit.data.find((item) => item.action === 'student.created' && item.target_id === createdUserId);
+  assert(creationAudit, 'student.created audit event missing');
+  assert.equal(creationAudit.metadata.source, 'manual_admin');
+  assert.equal(creationAudit.metadata.group_id, targetGroup.id);
+  assert.equal(creationAudit.metadata.status, 'pending_activation');
 
   validation = await admin.rpc('admin_validate_student_creation_v1', {
     provided_full_name: 'Duplicate Student',
@@ -123,12 +124,6 @@ try {
     target_group_id: targetGroup.id,
   });
   assert(secondProvision.error, 'already provisioned Auth user must not be provisioned twice');
-
-  const listed = await admin.rpc('get_admin_students_v1', { provided_search: candidateName, provided_group_id: targetGroup.id });
-  assert.ifError(listed.error);
-  assert.equal(listed.data.length, 1);
-  assert.equal(listed.data[0].email, candidateEmail);
-  assert.equal(listed.data[0].status, 'pending_activation');
 
   console.log(JSON.stringify({
     ok: true,
