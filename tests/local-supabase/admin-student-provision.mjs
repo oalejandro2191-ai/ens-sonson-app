@@ -75,7 +75,7 @@ try {
     target_group_id: targetGroup.id,
   });
   assert.ifError(provision.error);
-  assert.equal(provision.data.status, 'active');
+  assert.equal(provision.data.status, 'pending_activation');
   assert.equal(provision.data.group_id, targetGroup.id);
 
   const profile = await service.from('profiles').select('id,school_id,role,display_alias').eq('id', createdUserId).single();
@@ -87,7 +87,7 @@ try {
     .select('school_id,user_id,role,status').eq('user_id', createdUserId).single();
   assert.ifError(membership.error);
   assert.equal(membership.data.role, 'student');
-  assert.equal(membership.data.status, 'active');
+  assert.equal(membership.data.status, 'pending_activation');
   assert.equal(membership.data.school_id, profile.data.school_id);
 
   const groupMembership = await service.from('group_members')
@@ -108,6 +108,7 @@ try {
   assert.ifError(audit.error);
   assert.equal(audit.data.metadata.source, 'manual_admin');
   assert.equal(audit.data.metadata.group_id, targetGroup.id);
+  assert.equal(audit.data.metadata.status, 'pending_activation');
 
   validation = await admin.rpc('admin_validate_student_creation_v1', {
     provided_full_name: 'Duplicate Student',
@@ -127,6 +128,7 @@ try {
   assert.ifError(listed.error);
   assert.equal(listed.data.length, 1);
   assert.equal(listed.data[0].email, candidateEmail);
+  assert.equal(listed.data[0].status, 'pending_activation');
 
   console.log(JSON.stringify({
     ok: true,
@@ -134,7 +136,7 @@ try {
     teacher_denied: 'PASS',
     student_denied: 'PASS',
     profile_created: 'PASS',
-    institution_membership_created: 'PASS',
+    institution_membership_pending_activation: 'PASS',
     group_membership_created: 'PASS',
     zeroed_student_stats: 'PASS',
     audit_student_created: 'PASS',
