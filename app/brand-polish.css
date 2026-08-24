@@ -1,0 +1,35 @@
+.brand-mark {
+  width: 50px;
+  height: 60px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  background-image: url("https://ens-english-rebuild.vercel.app/assets/escudo-oficial.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  box-shadow: 0 4px 14px rgba(8, 46, 30, 0.14);
+  overflow: hidden;
+}
+
+.brand-mark > svg {
+  display: none;
+}
+
+.login-brand {
+  align-items: center;
+}
+
+.login-card {
+  border-top: 4px solid var(--yellow);
+}
+
+.login-card .eyebrow {
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 560px) {
+  .brand-mark {
+    width: 44px;
+    height: 53px;
+  }
+}
