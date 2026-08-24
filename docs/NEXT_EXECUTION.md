@@ -6,59 +6,73 @@
 - Final StudentApp browser E2E: run `32609818852` — **25 PASS / 0 FAIL**.
 - Production changes: none.
 
-## ADMIN PORTAL MVP — LOCAL GATE GREEN
+## ADMIN PORTAL MVP — VALIDATED GATE
 
 - Branch: `feature/admin-portal-mvp`.
-- Last validated product/test commit before this documentation checkpoint: `c12f1d7329ade572bedde8fbf3d3ab4ba0466eb3`.
-- CI run `32657629892`: PASS — typecheck, lint, tests, build.
-- Local Supabase run `32657629873`: PASS.
-- Combined browser E2E run `32657629863`: PASS — StudentApp 25 scenarios plus institution-admin scenarios.
-- Admin capabilities present in code: dashboard, groups create/edit/archive/restore, students list/search/filter/move/suspend/reactivate/archive, secure access reset trigger, vocabulary create/edit/archive/restore/delete-unused, audit log, and paginated vocabulary catalog route.
+- Exact product/test commit deployed to Staging: `ea7f187729f1809787e35ed119e152800bff56f1`.
+- CI run `32684011856`: **PASS** — typecheck, lint, tests, build.
+- Local Supabase run `32684011864`: **PASS**.
+- Combined Student/Admin browser E2E run `32684011863`: **PASS**.
+- Admin capabilities in the validated code: dashboard, group create/edit/archive/restore, student list/search/filter/move/suspend/reactivate/archive, secure access reset, secure manual student creation route, vocabulary create/edit/archive/restore/delete-unused, audit log, and paginated full vocabulary catalog.
 
-## SUPABASE STAGING — ADMIN BACKEND APPLIED
+## SUPABASE STAGING — ADMIN BACKEND READY
 
 - Project: `ddtdcjohzhjqunuajcod` (`ens-sonson-staging-db`, `us-east-1`, Free).
 - Incremental cost: USD 0.
 - Production Supabase `pgdoxpcwtqjbmqvzihhs`: untouched.
-- Existing fictitious fixtures remain: 5 Auth accounts, 1 institution, 2 groups, 3 students, 1 teacher, 6 Learning Units, route `A1-V3`, 2 lessons.
-- Migrations newly applied to Staging after local validation:
-  - `admin_management_mvp` (repository candidate `20260823000007_admin_management_mvp.sql`)
-  - `admin_access_reset_api` (repository candidate `20260823000008_admin_access_reset_api.sql`)
-  - `admin_vocabulary_pagination` (repository candidate `20260823000009_admin_vocabulary_pagination.sql`)
+- Existing fixtures remain fictitious only: 5 Auth accounts, 1 institution, 2 groups, 3 students, 1 teacher, 6 Learning Units, route `A1-V3`, 2 lessons.
+- Applied admin migrations:
+  - `admin_management_mvp` — repository candidate `20260823000007_admin_management_mvp.sql`
+  - `admin_access_reset_api` — repository candidate `20260823000008_admin_access_reset_api.sql`
+  - `admin_vocabulary_pagination` — repository candidate `20260823000009_admin_vocabulary_pagination.sql`
+  - `admin_student_provisioning` — repository candidate `20260823000010_admin_student_provisioning.sql`
+- `admin_student_provisioning` was applied only after CI + local Supabase + browser E2E were green on the exact deployed commit.
+- A manually provisioned student is created as `pending_activation`, not `active`; group membership and zeroed student statistics are created without inventing academic progress.
 - Edge Function `admin-student-access`: version 1, ACTIVE, `verify_jwt=true`.
+- Edge Function `admin-student-create`: id `d97ad13b-e3e1-4bf7-94f5-eb11bf4ab28b`, version 1, ACTIVE, `verify_jwt=true`.
+- `admin-student-create` validates the caller through the institution-admin RPC before using Auth Admin, keeps service-role credentials server-side, creates a one-time temporary password, and attempts Auth rollback if institutional provisioning fails.
 - Browser never receives service-role credentials.
 - Old one-time Auth seed function remains inert; temporary `pg_net` remains removed.
 
-## REMOTE ADMIN SMOKE — PASS
+## REMOTE ADMIN BACKEND SMOKE
 
-Validated directly against Staging using fictitious identities only:
+Validated against Staging using fictitious identities / rollback transactions only:
 
 - `institution_admin` reads portal/groups/students/vocabulary: PASS.
-- Current Staging counts: 2 groups, 3 active students, 6 Learning Units, 1 route.
-- Vocabulary pagination: `limit=3` returns 3 items and `total=6`: PASS.
+- Current Staging fixture counts: 2 groups, 3 active students, 6 Learning Units, 1 route.
+- Vocabulary pagination: PASS.
 - Student calling admin RPC: DENIED.
 - Teacher calling admin RPC: DENIED.
-- Password reset authorization bridge recognizes same-institution student: PASS.
+- Password reset authorization bridge: PASS.
 - Group create -> update -> archive -> restore: PASS inside transaction and rolled back.
 - Vocabulary create -> update -> archive -> restore -> delete when unused: PASS inside transaction and rolled back.
-- Destructive delete of used Learning Unit: DENIED as designed.
-- No smoke fixture changes were retained.
+- Destructive delete of a used Learning Unit: DENIED as designed.
+- No transaction-smoke fixture changes were retained.
+- Manual student creation through the deployed Edge Function has **not** yet been declared a remote authenticated-browser PASS; the function is deployed/ACTIVE and the same contract is green locally. Do not upgrade this evidence level until an authenticated Staging session actually exercises it.
 
-## VERCEL STAGING
+## VERCEL STAGING — DEPLOYED
 
 - Project: `ens-sonson-staging`.
 - Project ID: `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx`.
 - Team: `team_Af0Tp4NtemXmlaO4n2BqjkDx` (`OSKR21`).
-- Current deployment before publishing the new admin UI: `dpl_HspUBV1k71eJdqTLi6PxLUXcBWPb` — READY.
-- Older rollback candidate: `dpl_5e7hjsfUKkk4voTQnhGNu2hkZu2J`.
-- Repository `.vercel/project.json` is bound specifically to the Staging project ID/team above.
+- Stable alias: `https://ens-sonson-staging.vercel.app`.
+- Current deployment: `dpl_49WWDy1XCQ1QGhZDfBf6sinbgVit` — **READY**.
+- Exact source SHA fetched during build: `ea7f187729f1809787e35ed119e152800bff56f1`.
+- `/api/health`: HTTP 200 and reports the exact SHA above, `environment=staging`, `academicDataMode=backend`.
+- `/admin`: HTTP 200.
+- `/admin/estudiantes/nuevo`: HTTP 200.
+- `/admin/vocabulario`: HTTP 200.
+- New deployment runtime error scan: no runtime errors in the checked one-hour window.
+- New deployment warning/error log scan: no warning/error logs for the checked one-hour window.
+- Previous READY deployment `dpl_HspUBV1k71eJdqTLi6PxLUXcBWPb` remains the immediate rollback candidate; older candidate `dpl_5e7hjsfUKkk4voTQnhGNu2hkZu2J` also remains available.
+- Production Vercel project `prj_u9bB5CwLOIWtyWdSA7LKRfzBRj5r` was not touched.
 
 ## NEXT EXACT WORK
 
-1. Finish the remaining administrator autonomy gap: secure manual creation of a fictitious student/account from `/admin` without exposing service-role credentials.
-2. Add local integration + browser tests for manual creation and duplicate prevention.
-3. Re-run CI + local Supabase + combined Student/Admin E2E.
-4. Publish the validated admin UI only to Vercel project `prj_qOKtSfoMGKuGWyCbdvsVdE6wrkxx` and record the new deployment/rollback.
-5. After the admin is fully usable, audit/de-duplicate the existing 531 Learning Units before expanding toward the ENS English 1K catalog.
+1. Exercise `admin-student-create` through an authenticated fictitious `institution_admin` session in Staging and verify `pending_activation`, correct group, zero stats and audit; do not use real users.
+2. If that smoke is green, freeze the Admin Portal MVP checkpoint; no further admin scope expansion yet.
+3. Identify the authoritative source of the existing ~531 Learning Units without touching production data or inventing a corpus.
+4. Audit/de-duplicate that source before any expansion.
+5. Expand in controlled, reviewable batches toward the ENS English 1K catalog; do not add the remaining units in one bulk jump.
 
-Do not modify `main`, production Supabase, production Vercel, real roster, or real users.
+Do not modify `main`, Git branch `staging`, production Supabase, production Vercel, real roster, or real users.
