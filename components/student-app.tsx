@@ -44,6 +44,14 @@ type IdentityView = {
   group: string | null;
 };
 
+type ActivationState = {
+  required: boolean;
+  status: string | null;
+  school_id: string | null;
+  display_alias: string | null;
+  password_change_required: boolean;
+};
+
 type Dashboard = {
   display_alias: string | null;
   group: { id: string; name: string; grade: string | null; section: string | null; academic_year: string | null } | null;
@@ -150,7 +158,7 @@ function taskKey(task: Pick<LessonTask, "word_id" | "activity_type">) {
   return `${task.word_id}:${task.activity_type}`;
 }
 
-function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSignedIn: () => Promise<void> }) {
+function LoginPanel({ supabase, onSignedIn, notice }: { supabase: SupabaseClient; onSignedIn: () => Promise<void>; notice?: string | null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -177,11 +185,80 @@ function LoginPanel({ supabase, onSignedIn }: { supabase: SupabaseClient; onSign
         <span className="eyebrow">ACCESO INSTITUCIONAL</span>
         <h1>Iniciar sesión</h1>
         <p>Ingresa con tu cuenta para continuar tu ruta de aprendizaje.</p>
+        {notice ? <div className="form-note" role="status" data-testid="login-notice">{notice}</div> : null}
         <form onSubmit={submit} className="login-form">
           <label>Usuario<input data-testid="login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
           <label>Contraseña<input data-testid="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
           {error ? <div className="form-error" role="alert" data-testid="login-error">{error}</div> : null}
           <button data-testid="login-submit" className="primary-button" type="submit" disabled={submitting}>{submitting ? "Ingresando…" : "Ingresar"}</button>
+        </form>
+      </section>
+      <footer>Sistema creado por Oscar Alejandro Gil Valencia</footer>
+    </main>
+  );
+}
+
+function PasswordActivationPanel({
+  supabase,
+  displayName,
+  onActivated,
+}: {
+  supabase: SupabaseClient;
+  displayName: string | null;
+  onActivated: () => Promise<void>;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const policyOk =
+    password.length >= 10 &&
+    password.length <= 72 &&
+    /[a-z]/.test(password) &&
+    /[A-Z]/.test(password) &&
+    /[0-9]/.test(password) &&
+    /[^A-Za-z0-9]/.test(password);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!policyOk) {
+      setError("La contraseña debe tener entre 10 y 72 caracteres e incluir mayúscula, minúscula, número y símbolo.");
+      return;
+    }
+    if (password !== confirmation) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setBusy(true);
+    const response = await supabase.functions.invoke("student-activate", {
+      body: { new_password: password },
+    });
+    if (response.error || !response.data?.ok) {
+      setError(response.data?.error ?? response.error?.message ?? "No fue posible activar la cuenta.");
+      setBusy(false);
+      return;
+    }
+
+    await onActivated();
+    setBusy(false);
+  }
+
+  return (
+    <main className="login-page" data-testid="student-activation-page">
+      <section className="panel login-card">
+        <div className="brand login-brand"><div className="brand-mark" aria-hidden="true"><GraduationCap size={26} /></div><div><strong>ENS English</strong><span>Activación de cuenta</span></div></div>
+        <span className="eyebrow">PRIMER INGRESO · SEGURIDAD</span>
+        <h1>Crea tu nueva contraseña</h1>
+        <p>{displayName ? `Hola, ${displayName}. ` : ""}La contraseña entregada por la institución es temporal. Debes reemplazarla antes de comenzar tus actividades.</p>
+        <form onSubmit={submit} className="login-form">
+          <label>Nueva contraseña<input data-testid="activation-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+          <label>Confirmar contraseña<input data-testid="activation-confirmation" type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>
+          <div className="form-note">Mínimo 10 caracteres con mayúscula, minúscula, número y símbolo.</div>
+          {error ? <div className="form-error" role="alert" data-testid="activation-error">{error}</div> : null}
+          <button data-testid="activation-submit" className="primary-button" type="submit" disabled={busy || !password || !confirmation}>{busy ? "Activando…" : "Guardar y activar cuenta"}</button>
         </form>
       </section>
       <footer>Sistema creado por Oscar Alejandro Gil Valencia</footer>
@@ -472,6 +549,8 @@ export function StudentApp({ section }: { section: string[] }) {
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [identity, setIdentity] = useState<IdentityView | null>(null);
+  const [activationState, setActivationState] = useState<ActivationState | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [routeProgress, setRouteProgress] = useState<RouteProgress | null>(null);
   const [wordStates, setWordStates] = useState<WordStates>({ mastered: 0, learning: 0, review: 0, new: 0 });
@@ -505,6 +584,26 @@ export function StudentApp({ section }: { section: string[] }) {
     const hasSession = Boolean(sessionData.session);
     setSignedIn(hasSession);
     if (!hasSession) {
+      setIdentity(null);
+      setActivationState(null);
+      setDashboard(null);
+      setRouteProgress(null);
+      setLoading(false);
+      setReady(true);
+      return;
+    }
+
+    setLoginNotice(null);
+    const activationResult = await supabase.rpc("get_my_student_activation_state_v1");
+    if (activationResult.error) {
+      setError(activationResult.error.message);
+      setLoading(false);
+      setReady(true);
+      return;
+    }
+    const nextActivation = activationResult.data as ActivationState;
+    setActivationState(nextActivation);
+    if (nextActivation?.required) {
       setIdentity(null);
       setDashboard(null);
       setRouteProgress(null);
@@ -568,14 +667,29 @@ export function StudentApp({ section }: { section: string[] }) {
     if (!supabase) return;
     await supabase.auth.signOut();
     setIdentity(null);
+    setActivationState(null);
     setDashboard(null);
     setRouteProgress(null);
     setSignedIn(false);
+    setLoginNotice(null);
+  }
+
+  async function completeActivation() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setIdentity(null);
+    setActivationState(null);
+    setDashboard(null);
+    setRouteProgress(null);
+    setSignedIn(false);
+    setReady(true);
+    setLoginNotice("Contraseña actualizada y cuenta activada. Inicia sesión nuevamente con tu nueva contraseña.");
   }
 
   if (!supabase) return <EmptyPanel title="Servicio de aprendizaje no disponible" detail="No fue posible conectar la aplicación en este momento." />;
   if (!ready) return <main className="loading-page"><RefreshCw className="spin" /> Cargando sesión…</main>;
-  if (!signedIn) return <LoginPanel supabase={supabase} onSignedIn={loadIdentity} />;
+  if (!signedIn) return <LoginPanel supabase={supabase} onSignedIn={loadIdentity} notice={loginNotice} />;
+  if (activationState?.required) return <PasswordActivationPanel supabase={supabase} displayName={activationState.display_alias} onActivated={completeActivation} />;
 
   const isStudent = identity?.portal.institution_role === "student";
   const title = navigation.find((item) => item.key === active)?.label ?? "Inicio";
