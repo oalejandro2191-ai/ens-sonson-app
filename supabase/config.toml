@@ -34,3 +34,9 @@ file_size_limit = "10MiB"
 
 [functions.admin-student-access]
 verify_jwt = true
+
+[functions.admin-student-create]
+verify_jwt = true
+
+[functions.student-activate]
+verify_jwt = true
