@@ -32,3 +32,17 @@ test('password reset authorizes target before privileged password mutation', () 
   assert.match(code, /must_change_password:\s*true/);
   assert.doesNotMatch(code, /console\.(log|info|warn|error)\([^)]*temporaryPassword/i, 'temporary password must not be logged');
 });
+
+
+test('student activation validates state before privileged password mutation and completes through service-only RPC', () => {
+  const code = source('supabase/functions/student-activate/index.ts');
+  const stateAt = code.indexOf('get_my_student_activation_state_v1');
+  const mutateAt = code.indexOf('auth.admin.updateUserById');
+  const completeAt = code.indexOf('service_complete_student_activation_v1');
+
+  assert(stateAt >= 0, 'activation-state RPC missing');
+  assert(mutateAt > stateAt, 'password must never be changed before activation state is validated');
+  assert(completeAt > mutateAt, 'membership activation must happen after the new password is stored');
+  assert.match(code, /app_metadata:[\\s\\S]*must_change_password:\\s*false/);
+  assert.doesNotMatch(code, /console\\.(log|info|warn|error)\\([^)]*newPassword/i, 'new password must not be logged');
+});
