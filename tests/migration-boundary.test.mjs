@@ -145,9 +145,9 @@ test('student activation candidate has an explicit non-destructive rollback', ()
   const rollback = join(rollbackDir, '20260910000012_student_activation_flow.rollback.sql');
   assert(existsSync(rollback), 'student activation rollback missing');
   const source = readFileSync(rollback, 'utf8');
-  assert.match(source, /drop function if exists public\\.service_complete_student_activation_v1\\(uuid\\)/i);
-  assert.match(source, /drop function if exists public\\.get_my_student_activation_state_v1\\(\\)/i);
-  assert.doesNotMatch(source, /delete\\s+from\\s+auth\\.users/i, 'rollback must never delete student accounts');
+  assert.match(source, /drop function if exists public\.service_complete_student_activation_v1\(uuid\)/i);
+  assert.match(source, /drop function if exists public\.get_my_student_activation_state_v1\(\)/i);
+  assert.doesNotMatch(source, /delete\s+from\s+auth\.users/i, 'rollback must never delete student accounts');
 });
 
 test('browser source contains no service-role credential path', () => {
