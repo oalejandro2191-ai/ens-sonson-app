@@ -78,6 +78,10 @@ Deno.serve(async (request) => {
     email: validation.data.email,
     password: temporaryPassword,
     email_confirm: true,
+    app_metadata: {
+      must_change_password: true,
+      created_by_institution_admin: true,
+    },
     user_metadata: {
       full_name: validation.data.full_name,
       must_change_password: true,
