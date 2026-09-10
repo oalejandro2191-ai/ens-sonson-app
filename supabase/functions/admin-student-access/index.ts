@@ -75,6 +75,11 @@ Deno.serve(async (request) => {
   const temporaryPassword = randomPassword();
   const updated = await admin.auth.admin.updateUserById(targetUserId, {
     password: temporaryPassword,
+    app_metadata: {
+      ...(target.data.user.app_metadata ?? {}),
+      must_change_password: true,
+      temporary_password_issued_at: new Date().toISOString(),
+    },
     user_metadata: {
       ...(target.data.user.user_metadata ?? {}),
       must_change_password: true,
