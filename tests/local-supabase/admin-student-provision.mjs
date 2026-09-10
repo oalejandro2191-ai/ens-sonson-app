@@ -101,6 +101,28 @@ assert.equal(listed.data[0].email, candidateEmail);
 assert.equal(listed.data[0].status, 'pending_activation');
 assert.equal(listed.data[0].group_id, targetGroup.id);
 
+const candidate = clientWith(anonKey);
+const candidateLogin = await candidate.auth.signInWithPassword({ email: candidateEmail, password: candidatePassword });
+assert.ifError(candidateLogin.error);
+
+const activationBefore = await candidate.rpc('get_my_student_activation_state_v1');
+assert.ifError(activationBefore.error);
+assert.equal(activationBefore.data.required, true);
+assert.equal(activationBefore.data.status, 'pending_activation');
+
+const directCompletion = await candidate.rpc('service_complete_student_activation_v1', { target_user_id: createdUserId });
+assert(directCompletion.error, 'student must not execute the privileged activation completion RPC directly');
+
+const activationComplete = await service.rpc('service_complete_student_activation_v1', { target_user_id: createdUserId });
+assert.ifError(activationComplete.error);
+assert.equal(activationComplete.data.status, 'active');
+assert.equal(activationComplete.data.activated, true);
+
+const activationAfter = await candidate.rpc('get_my_student_activation_state_v1');
+assert.ifError(activationAfter.error);
+assert.equal(activationAfter.data.required, false);
+assert.equal(activationAfter.data.status, 'active');
+
 const audit = await admin.rpc('get_admin_audit_v1', { provided_limit: 200 });
 assert.ifError(audit.error);
 const creationAudit = audit.data.find((item) => item.action === 'student.created' && item.target_id === createdUserId);
@@ -108,6 +130,10 @@ assert(creationAudit, 'student.created audit event missing');
 assert.equal(creationAudit.metadata.source, 'manual_admin');
 assert.equal(creationAudit.metadata.group_id, targetGroup.id);
 assert.equal(creationAudit.metadata.status, 'pending_activation');
+
+const activationAudit = audit.data.find((item) => item.action === 'student.activated' && item.target_id === createdUserId);
+assert(activationAudit, 'student.activated audit event missing');
+assert.equal(activationAudit.metadata.source, 'self_service_first_login');
 
 validation = await admin.rpc('admin_validate_student_creation_v1', {
   provided_full_name: 'Duplicate Student',
@@ -135,5 +161,9 @@ console.log(JSON.stringify({
   audit_student_created: 'PASS',
   duplicate_email_denied: 'PASS',
   double_provision_denied: 'PASS',
+  activation_state_pending: 'PASS',
+  direct_activation_rpc_denied: 'PASS',
+  student_activation_completed: 'PASS',
+  activation_audit_logged: 'PASS',
   cleanup: 'ephemeral stack destroyed after workflow',
 }, null, 2));
