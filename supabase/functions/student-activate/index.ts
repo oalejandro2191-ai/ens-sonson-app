@@ -14,15 +14,6 @@ function json(status: number, body: Record<string, unknown>) {
   });
 }
 
-function validPassword(value: string) {
-  return value.length >= 10 &&
-    value.length <= 72 &&
-    /[a-z]/.test(value) &&
-    /[A-Z]/.test(value) &&
-    /[0-9]/.test(value) &&
-    /[^A-Za-z0-9]/.test(value);
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json(405, { ok: false, error: "Método no permitido" });
@@ -43,21 +34,6 @@ Deno.serve(async (request) => {
   const authResult = await caller.auth.getUser();
   if (authResult.error || !authResult.data.user) return json(401, { ok: false, error: "Sesión inválida" });
 
-  let body: { new_password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return json(400, { ok: false, error: "Solicitud inválida" });
-  }
-
-  const newPassword = body.new_password ?? "";
-  if (!validPassword(newPassword)) {
-    return json(400, {
-      ok: false,
-      error: "La nueva contraseña debe tener entre 10 y 72 caracteres e incluir mayúscula, minúscula, número y símbolo",
-    });
-  }
-
   const state = await caller.rpc("get_my_student_activation_state_v1");
   if (state.error) return json(403, { ok: false, error: state.error.message });
   if (!state.data?.required) return json(409, { ok: false, error: "Esta cuenta no requiere activación" });
@@ -70,8 +46,7 @@ Deno.serve(async (request) => {
   if (current.error || !current.data.user) return json(404, { ok: false, error: "Cuenta Auth no encontrada" });
 
   const now = new Date().toISOString();
-  const updated = await admin.auth.admin.updateUserById(authResult.data.user.id, {
-    password: newPassword,
+  const cleared = await admin.auth.admin.updateUserById(authResult.data.user.id, {
     app_metadata: {
       ...(current.data.user.app_metadata ?? {}),
       must_change_password: false,
@@ -83,8 +58,7 @@ Deno.serve(async (request) => {
       password_changed_at: now,
     },
   });
-
-  if (updated.error) return json(500, { ok: false, error: "No fue posible actualizar la contraseña" });
+  if (cleared.error) return json(500, { ok: false, error: "No fue posible completar la activación" });
 
   const activation = await admin.rpc("service_complete_student_activation_v1", {
     target_user_id: authResult.data.user.id,
@@ -93,11 +67,15 @@ Deno.serve(async (request) => {
   if (activation.error) {
     await admin.auth.admin.updateUserById(authResult.data.user.id, {
       app_metadata: {
-        ...(updated.data.user?.app_metadata ?? current.data.user.app_metadata ?? {}),
+        ...(cleared.data.user?.app_metadata ?? current.data.user.app_metadata ?? {}),
+        must_change_password: true,
+      },
+      user_metadata: {
+        ...(cleared.data.user?.user_metadata ?? current.data.user.user_metadata ?? {}),
         must_change_password: true,
       },
     });
-    return json(500, { ok: false, error: "La contraseña cambió, pero no fue posible completar la activación. Intente nuevamente." });
+    return json(500, { ok: false, error: "No fue posible completar la activación. Inicie sesión nuevamente e intente otra vez." });
   }
 
   return json(200, {
