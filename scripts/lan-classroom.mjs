@@ -180,7 +180,8 @@ function initializeLocalDatabase(forceReset) {
   const firstRun = !existsSync(MARKER_FILE);
   const mustReset = forceReset || firstRun;
 
-  const localTargetEnv = { ...process.env, ENS_DB_TARGET: "local-empty" };\n  if (mustReset) run(process.execPath, ["scripts/assemble-empty-db-bootstrap.mjs"], { env: localTargetEnv });
+  const localTargetEnv = { ...process.env, ENS_DB_TARGET: "local-empty" };
+  if (mustReset) run(process.execPath, ["scripts/assemble-empty-db-bootstrap.mjs"], { env: localTargetEnv });
   try {
     supabase(["start"]);
     if (mustReset) supabase(["db", "reset", "--local"]);
