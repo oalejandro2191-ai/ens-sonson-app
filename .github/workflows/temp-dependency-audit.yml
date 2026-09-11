@@ -5,30 +5,36 @@ on:
     branches: [security/next-16.3.3]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: security/next-16.3.3
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Dependency chains
-        shell: bash
+      - name: Refresh lockfile with secure overrides
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install reproducibly
+        run: npm ci
+      - name: Verify audit is clean
+        run: npm audit --audit-level=high
+      - name: Verify dependency versions
         run: |
-          echo "=== ALL CHAINS ==="
-          npm ls js-yaml sharp --all || true
-          echo "=== PRODUCTION CHAINS ==="
-          npm ls js-yaml sharp --omit=dev --all || true
-      - name: Safe audit-fix dry run
-        shell: bash
+          npm ls js-yaml sharp --all
+          node -e "const l=require('./package-lock.json'); const p=l.packages; if(p['node_modules/js-yaml']?.version!=='4.3.2'||p['node_modules/sharp']?.version!=='0.35.4') process.exit(1)"
+      - name: Commit refreshed lockfile
         run: |
-          set +e
-          npm audit fix --package-lock-only --dry-run --json
-          echo "dry_run_exit_code=$?"
-          exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "security: refresh lockfile for patched transitives"
+          git push origin HEAD:security/next-16.3.3
