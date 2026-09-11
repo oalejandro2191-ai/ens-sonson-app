@@ -1,0 +1,29 @@
+name: Temporary Dependency Audit
+
+on:
+  push:
+    branches: [security/next-16.3.3]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: NPM audit JSON
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > /tmp/audit.json
+          CODE=$?
+          cat /tmp/audit.json
+          echo "audit_exit_code=$CODE"
+          exit 0
