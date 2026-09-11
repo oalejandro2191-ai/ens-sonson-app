@@ -147,6 +147,7 @@ async function ensureLocalAdmin(apiUrl, serviceKey) {
   const users = Array.isArray(listing?.users) ? listing.users : [];
   let user = users.find((item) => item.email === ADMIN_EMAIL);
   let creds = loadCredentials();
+  const hadCredentials = Boolean(creds);
 
   if (!creds) {
     creds = { email: ADMIN_EMAIL, password: generatePassword() };
