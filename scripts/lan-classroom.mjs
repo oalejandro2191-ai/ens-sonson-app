@@ -191,6 +191,21 @@ function initializeLocalDatabase(forceReset) {
   return { firstRun, reset: mustReset };
 }
 
+async function verifyLocalAdminLogin(apiUrl, anonKey, creds) {
+  const response = await fetch(apiUrl + "/auth/v1/token?grant_type=password", {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email: creds.email, password: creds.password }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Local classroom admin login verification failed (HTTP ${response.status}): ${body.slice(0, 180)}`);
+  }
+}
+
 async function verifyLanBackend(lanApiUrl, anonKey) {
   const response = await fetch(lanApiUrl + "/auth/v1/settings", { headers: { apikey: anonKey } });
   if (!response.ok) throw new Error(`LAN backend is not reachable at ${lanApiUrl} (HTTP ${response.status}). Check firewall/hotspot isolation.`);
@@ -214,6 +229,7 @@ export async function main(argv = process.argv.slice(2)) {
 
   const lanApiUrl = replaceLoopback(apiLocal, lanIp);
   const creds = await ensureLocalAdmin(apiLocal, serviceKey);
+  await verifyLocalAdminLogin(apiLocal, anonKey, creds);
   await verifyLanBackend(lanApiUrl, anonKey);
 
   if (init.reset) {
@@ -237,7 +253,7 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(`Student URL: ${studentUrl}`);
   console.log(`Admin URL:   ${adminUrl}`);
   console.log(`Admin user:  ${creds.email}`);
-  console.log(`Admin password (local only): ${creds.password}`);
+  if (process.env.ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT !== "1") {\n    console.log(`Admin password (local only): ${creds.password}`);\n  } else {\n    console.log("Admin password: [hidden in automated test logs]");\n  }
   console.log("Keep this computer and student devices on the same trusted hotspot/router.");
   console.log("Do not expose ports 3000 or 54321 to the public Internet.\n");
 
