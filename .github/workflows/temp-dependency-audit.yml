@@ -18,12 +18,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: NPM audit JSON
+      - name: Dependency chains
+        shell: bash
+        run: |
+          echo "=== ALL CHAINS ==="
+          npm ls js-yaml sharp --all || true
+          echo "=== PRODUCTION CHAINS ==="
+          npm ls js-yaml sharp --omit=dev --all || true
+      - name: Safe audit-fix dry run
         shell: bash
         run: |
           set +e
-          npm audit --json > /tmp/audit.json
-          CODE=$?
-          cat /tmp/audit.json
-          echo "audit_exit_code=$CODE"
+          npm audit fix --package-lock-only --dry-run --json
+          echo "dry_run_exit_code=$?"
           exit 0
