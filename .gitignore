@@ -8,3 +8,4 @@ coverage/
 .vercel/
 *.log
 .DS_Store
+.ens-lan-admin.json\n.ens-lan-initialized\n
