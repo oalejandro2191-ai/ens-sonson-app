@@ -40,10 +40,6 @@ jobs:
         run: |
           test -s .ens-lan-admin.json
           chmod 600 .ens-lan-admin.json
-          set -a
-          source <(supabase status -o env)
-          set +a
-          curl -fsS -H "apikey: $ANON_KEY" "$API_URL/auth/v1/settings" >/dev/null
           DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
           test -n "$DB_CONTAINER"
           COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
