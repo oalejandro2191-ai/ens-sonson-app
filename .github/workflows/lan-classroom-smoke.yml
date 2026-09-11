@@ -39,7 +39,7 @@ jobs:
           npm run lan:prepare
           test -s .ens-lan-admin.json
           sha256sum .ens-lan-admin.json > /tmp/ens-lan-creds.sha256
-      - name: Verify second preparation preserves credentials and access
+      - name: Verify repeated preparation preserves credentials and access
         env:
           ENS_LAN_IP: 127.0.0.1
           ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
