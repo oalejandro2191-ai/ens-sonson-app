@@ -253,7 +253,11 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(`Student URL: ${studentUrl}`);
   console.log(`Admin URL:   ${adminUrl}`);
   console.log(`Admin user:  ${creds.email}`);
-  if (process.env.ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT !== "1") {\n    console.log(`Admin password (local only): ${creds.password}`);\n  } else {\n    console.log("Admin password: [hidden in automated test logs]");\n  }
+  if (process.env.ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT !== "1") {
+    console.log(`Admin password (local only): ${creds.password}`);
+  } else {
+    console.log("Admin password: [hidden in automated test logs]");
+  }
   console.log("Keep this computer and student devices on the same trusted hotspot/router.");
   console.log("Do not expose ports 3000 or 54321 to the public Internet.\n");
 
