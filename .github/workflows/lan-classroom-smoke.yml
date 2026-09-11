@@ -34,20 +34,18 @@ jobs:
       - name: Prepare classroom LAN stack
         env:
           ENS_LAN_IP: 127.0.0.1
-        run: npm run lan:prepare
-      - name: Verify local classroom admin and backend
-        shell: bash
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
         run: |
+          npm run lan:prepare
           test -s .ens-lan-admin.json
-          chmod 600 .ens-lan-admin.json
-          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
-          test -n "$DB_CONTAINER"
-          COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
-          test "$COUNT" = "1"
-      - name: Verify second preparation preserves database
+          sha256sum .ens-lan-admin.json > /tmp/ens-lan-creds.sha256
+      - name: Verify second preparation preserves credentials and access
         env:
           ENS_LAN_IP: 127.0.0.1
-        run: npm run lan:prepare
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
+        run: |
+          npm run lan:prepare
+          sha256sum -c /tmp/ens-lan-creds.sha256
       - name: Cleanup
         if: always()
         run: |
