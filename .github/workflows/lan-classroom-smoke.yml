@@ -1,0 +1,60 @@
+name: Classroom LAN Smoke
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - "scripts/lan-classroom.mjs"
+      - "tests/lan-mode.test.mjs"
+      - "docs/LAN_CLASSROOM_MODE.md"
+      - "package.json"
+      - "supabase/**"
+      - ".github/workflows/lan-classroom-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lan-prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Run LAN helper unit tests
+        run: node --test tests/lan-mode.test.mjs
+      - name: Prepare classroom LAN stack
+        env:
+          ENS_LAN_IP: 127.0.0.1
+        run: npm run lan:prepare
+      - name: Verify local classroom admin and backend
+        shell: bash
+        run: |
+          test -s .ens-lan-admin.json
+          chmod 600 .ens-lan-admin.json
+          set -a
+          source <(supabase status -o env)
+          set +a
+          curl -fsS -H "apikey: $ANON_KEY" "$API_URL/auth/v1/settings" >/dev/null
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          test -n "$DB_CONTAINER"
+          COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
+          test "$COUNT" = "1"
+      - name: Verify second preparation preserves database
+        env:
+          ENS_LAN_IP: 127.0.0.1
+        run: npm run lan:prepare
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f .ens-lan-admin.json .ens-lan-initialized
+          node scripts/remove-empty-db-bootstrap.mjs || true
+          supabase stop --no-backup || true
