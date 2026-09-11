@@ -233,11 +233,16 @@ function PasswordActivationPanel({
     }
 
     setBusy(true);
-    const response = await supabase.functions.invoke("student-activate", {
-      body: { new_password: password },
-    });
+    const passwordUpdate = await supabase.auth.updateUser({ password });
+    if (passwordUpdate.error) {
+      setError("No fue posible actualizar la contraseña. Intenta con una contraseña diferente.");
+      setBusy(false);
+      return;
+    }
+
+    const response = await supabase.functions.invoke("student-activate", { body: {} });
     if (response.error || !response.data?.ok) {
-      setError(response.data?.error ?? response.error?.message ?? "No fue posible activar la cuenta.");
+      setError(response.data?.error ?? response.error?.message ?? "La contraseña cambió, pero falta completar la activación. Inicia sesión nuevamente e intenta otra vez.");
       setBusy(false);
       return;
     }
