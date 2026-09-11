@@ -5,9 +5,10 @@
 -- but next_review_at is moved into the future only when the review is perfect.
 -- A 3/4 valid pass can therefore be repeated immediately and compress mastery cycles.
 --
--- Behavioral change in this candidate is intentionally one line only:
+-- Behavioral change in this candidate is intentionally minimal:
 --   previous: next_at := case when perfect then now + interval else now end
 --   candidate: next_at := case when pass    then now + interval else now end
+-- The obsolete `perfect` variable is removed because it has no remaining semantic role.
 --
 -- The rest of the function mirrors the current server implementation so this file is
 -- reproducible locally and can later be reviewed as a normal deployable migration.
@@ -46,7 +47,6 @@ declare
   prev public.student_word_progress%rowtype;
   prev_exists boolean;
   pass boolean;
-  perfect boolean;
   new_interval integer;
   new_streak integer;
   new_state public.mastery_state;
@@ -159,7 +159,6 @@ begin
     end if;
 
     pass:=review.corrects::numeric/review.attempts>=0.75;
-    perfect:=review.corrects=review.attempts;
     new_streak:=case when pass then coalesce(prev.correct_streak,0)+1 else 0 end;
     new_interval:=case
       when not pass then 0
