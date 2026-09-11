@@ -341,4 +341,36 @@ test.describe.serial('ENS English local StudentApp E2E',()=>{
     await expect(page.getByTestId('metric-learning')).toHaveText('2');
     await context.close();
   });
+
+  test('26 cuenta pendiente exige cambio de contraseña antes de aprender',async({page})=>{
+    const activatedPassword='PendingStudent!2026';
+    await page.goto('/estudiante');
+    await page.getByTestId('login-email').fill('student6@ens.local');
+    await page.getByTestId('login-password').fill(password);
+    await page.getByTestId('login-submit').click();
+
+    await expect(page.getByTestId('student-activation-page')).toBeVisible();
+    await expect(page.getByTestId('student-dashboard')).toHaveCount(0);
+
+    await page.getByTestId('activation-password').fill(activatedPassword);
+    await page.getByTestId('activation-confirmation').fill(activatedPassword);
+    await page.getByTestId('activation-submit').click();
+
+    await expect(page.getByTestId('login-page')).toBeVisible();
+    await expect(page.getByTestId('login-notice')).toContainText('cuenta activada');
+    await page.getByTestId('login-email').fill('student6@ens.local');
+    await page.getByTestId('login-password').fill(activatedPassword);
+    await page.getByTestId('login-submit').click();
+    await expect(page.getByTestId('student-dashboard')).toBeVisible();
+
+    const activated=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    const login=await activated.auth.signInWithPassword({email:'student6@ens.local',password:activatedPassword});
+    expect(login.error).toBeNull();
+    const state=await activated.rpc('get_my_student_activation_state_v1');
+    expect(state.error).toBeNull();
+    expect(state.data.required).toBe(false);
+    expect(state.data.status).toBe('active');
+    await page.screenshot({path:`${artifacts}/26-activation.png`,fullPage:true});
+  });
+
 });
