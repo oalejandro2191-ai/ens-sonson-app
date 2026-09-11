@@ -83,7 +83,7 @@ jobs:
           }
 
           console.log(JSON.stringify(report, null, 2));
-          const fs = require('fs');
+          const fs = await import('node:fs');
           fs.appendFileSync(
             process.env.GITHUB_STEP_SUMMARY,
             '# ENS English — 130-client staging load smoke\n\n' + JSON.stringify(report, null, 2) + '\n'
