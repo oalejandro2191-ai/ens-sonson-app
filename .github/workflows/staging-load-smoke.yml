@@ -1,0 +1,92 @@
+name: Staging Load Smoke
+
+on:
+  push:
+    branches: [chatgpt-load-smoke-20260910]
+
+jobs:
+  load-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run 130-client HTTP smoke
+        env:
+          BASE_URL: https://ens-sonson-staging.vercel.app
+        run: |
+          node <<'NODE'
+          const paths = ['/api/health', '/estudiante', '/admin'];
+          const clients = 130;
+          const concurrency = 30;
+
+          async function one(url) {
+            const start = performance.now();
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 15000);
+            try {
+              const res = await fetch(url, {
+                signal: ctrl.signal,
+                headers: { 'user-agent': 'ENS-English-GitHub-load-smoke/1.0' }
+              });
+              await res.arrayBuffer();
+              return { status: res.status, ms: performance.now() - start };
+            } catch (error) {
+              return { status: 0, ms: performance.now() - start, error: String(error) };
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          async function pool(url) {
+            const out = [];
+            let cursor = 0;
+            async function worker() {
+              while (true) {
+                const i = cursor++;
+                if (i >= clients) return;
+                out[i] = await one(url);
+              }
+            }
+            await Promise.all(Array.from({ length: concurrency }, worker));
+            return out;
+          }
+
+          const pct = (xs, p) => {
+            if (!xs.length) return null;
+            const s = [...xs].sort((a,b)=>a-b);
+            return s[Math.min(s.length-1, Math.round((p/100)*(s.length-1)))];
+          };
+
+          let failed = false;
+          const report = {};
+          for (const path of paths) {
+            const start = performance.now();
+            const results = await pool(process.env.BASE_URL + path);
+            const wall = performance.now() - start;
+            const ok = results.filter(r => r.status === 200);
+            const bad = results.filter(r => r.status !== 200);
+            const ms = ok.map(r => r.ms);
+            report[path] = {
+              requests: clients,
+              ok_200: ok.length,
+              errors: bad.length,
+              wall_ms: Math.round(wall),
+              rps: Number((clients / (wall/1000)).toFixed(2)),
+              avg_ms: ms.length ? Math.round(ms.reduce((a,b)=>a+b,0)/ms.length) : null,
+              p50_ms: ms.length ? Math.round(pct(ms,50)) : null,
+              p95_ms: ms.length ? Math.round(pct(ms,95)) : null,
+              p99_ms: ms.length ? Math.round(pct(ms,99)) : null,
+              max_ms: ms.length ? Math.round(Math.max(...ms)) : null,
+              bad_statuses: bad.slice(0,10).map(x => x.status),
+              sample_errors: bad.filter(x=>x.error).slice(0,3).map(x=>x.error)
+            };
+            if (bad.length > 0) failed = true;
+          }
+
+          console.log(JSON.stringify(report, null, 2));
+          const fs = require('fs');
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            '# ENS English — 130-client staging load smoke\n\n' + JSON.stringify(report, null, 2) + '\n'
+          );
+          if (failed) process.exit(1);
+          NODE
