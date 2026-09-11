@@ -164,7 +164,7 @@ async function ensureLocalAdmin(apiUrl, serviceKey) {
       }),
     });
     user = created?.user ?? created;
-  } else if (!existsSync(CREDENTIAL_FILE)) {
+  } else if (!hadCredentials) {
     await authAdminRequest(apiUrl, serviceKey, `/auth/v1/admin/users/${user.id}`, {
       method: "PUT",
       body: JSON.stringify({ password: creds.password }),
