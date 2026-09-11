@@ -34,15 +34,19 @@ test('password reset authorizes target before privileged password mutation', () 
 });
 
 
-test('student activation validates state before privileged password mutation and completes through service-only RPC', () => {
-  const code = source('supabase/functions/student-activate/index.ts');
-  const stateAt = code.indexOf('get_my_student_activation_state_v1');
-  const mutateAt = code.indexOf('auth.admin.updateUserById');
-  const completeAt = code.indexOf('service_complete_student_activation_v1');
+test('student activation keeps the new password out of the Edge Function', () => {
+  const edge = source('supabase/functions/student-activate/index.ts');
+  const client = source('components/student-app.tsx');
+  const stateAt = edge.indexOf('get_my_student_activation_state_v1');
+  const clearFlagAt = edge.indexOf('must_change_password: false');
+  const completeAt = edge.indexOf('service_complete_student_activation_v1');
+  const clientPasswordAt = client.indexOf('auth.updateUser({ password })');
+  const invokeAt = client.indexOf('functions.invoke("student-activate"');
 
   assert(stateAt >= 0, 'activation-state RPC missing');
-  assert(mutateAt > stateAt, 'password must never be changed before activation state is validated');
-  assert(completeAt > mutateAt, 'membership activation must happen after the new password is stored');
-  assert.match(code, /app_metadata:[\s\S]*must_change_password:\s*false/);
-  assert.doesNotMatch(code, /console\.(log|info|warn|error)\([^)]*newPassword/i, 'new password must not be logged');
+  assert(clearFlagAt > stateAt, 'temporary-password flag must clear only after activation state validation');
+  assert(completeAt > clearFlagAt, 'membership activation must happen after the server flag is cleared');
+  assert(clientPasswordAt >= 0, 'authenticated client password update missing');
+  assert(invokeAt > clientPasswordAt, 'server activation must happen only after the authenticated password update succeeds');
+  assert.doesNotMatch(edge, /new_password|newPassword|password:\s*new/i, 'new password must never enter the activation Edge Function');
 });
