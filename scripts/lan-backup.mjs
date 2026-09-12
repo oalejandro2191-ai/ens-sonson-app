@@ -142,7 +142,11 @@ BEGIN
 END $$;
 TRUNCATE TABLE auth.identities, auth.users CASCADE;
 `;
-  run("docker", ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"], { input: sql });
+  run("docker", [
+    "exec", container,
+    "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1",
+    "-c", sql,
+  ], { capture: true });
 }
 
 export function restoreBackup(dumpPath, { confirmed = false } = {}) {
