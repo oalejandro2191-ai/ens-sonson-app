@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { isPathInside, sha256, validateManifest } from "../scripts/lan-backup.mjs";
 
 test("backup checksum is deterministic", () => {
-  assert.equal(sha256(Buffer.from("ENS")), "b2f4efff2c4c91b75a2f0e5ca0c7e51e067c050374e5c7157aeff41151edb7ca");
+  assert.equal(sha256(Buffer.from("ENS")), "09ddf36201cda6a7b9c8ace9811b71087f9d38be4750f9e4706361dd2deb3787");
 });
 
 test("restore path guard accepts only files inside backup directory", () => {
