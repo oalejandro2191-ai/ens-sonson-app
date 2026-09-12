@@ -1,0 +1,54 @@
+name: Classroom LAN Smoke
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - "scripts/lan-classroom.mjs"
+      - "tests/lan-mode.test.mjs"
+      - "docs/LAN_CLASSROOM_MODE.md"
+      - "package.json"
+      - "supabase/**"
+      - ".github/workflows/lan-classroom-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lan-prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Run LAN helper unit tests
+        run: node --test tests/lan-mode.test.mjs
+      - name: Prepare classroom LAN stack
+        env:
+          ENS_LAN_IP: 127.0.0.1
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
+        run: |
+          npm run lan:prepare
+          test -s .ens-lan-admin.json
+          sha256sum .ens-lan-admin.json > /tmp/ens-lan-creds.sha256
+      - name: Verify repeated preparation preserves credentials and access
+        env:
+          ENS_LAN_IP: 127.0.0.1
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
+        run: |
+          npm run lan:prepare
+          sha256sum -c /tmp/ens-lan-creds.sha256
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f .ens-lan-admin.json .ens-lan-initialized
+          node scripts/remove-empty-db-bootstrap.mjs || true
+          supabase stop --no-backup || true

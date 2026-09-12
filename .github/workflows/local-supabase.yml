@@ -1,0 +1,133 @@
+name: Local Supabase Pilot
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - 'supabase/**'
+      - 'scripts/**'
+      - 'tests/local-supabase/**'
+      - 'tests/migration-boundary.test.mjs'
+      - 'tests/repository-secrets.test.mjs'
+      - '.github/workflows/local-supabase.yml'
+  push:
+    branches: [feature/local-studentapp-integration, feature/admin-portal-mvp]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENS_DB_TARGET: local-empty
+
+jobs:
+  local-backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Record tool versions
+        run: |
+          docker --version
+          supabase --version
+          node --version
+          npm --version
+          psql --version
+      - name: Guard incremental migrations and repository secrets
+        run: node --test tests/migration-boundary.test.mjs tests/repository-secrets.test.mjs
+      - name: Materialize EMPTY DATABASE BOOTSTRAP ONLY for isolated Docker
+        run: node scripts/assemble-empty-db-bootstrap.mjs
+      - name: Start isolated Supabase stack
+        run: supabase start
+      - name: Reset empty local database from bootstrap + incremental candidates + local seed
+        run: supabase db reset --local
+      - name: Remove ephemeral bootstrap from migration directory
+        if: always()
+        run: node scripts/remove-empty-db-bootstrap.mjs
+      - name: Load TEST-ONLY helpers
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/ens-supabase.env
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/local/test_helpers.sql
+      - name: SQL guard for valid-review spacing candidate
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/local-supabase/mastery-spacing.sql
+      - name: Run Auth, RLS, RPC and mastery integration suite
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          node tests/local-supabase/pilot-security-learning.mjs
+      - name: Run institution admin management integration suite
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          node tests/local-supabase/admin-management.mjs
+      - name: Run secure manual student provisioning integration
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          node tests/local-supabase/admin-student-provision.mjs
+      - name: Run StudentApp server recovery contract
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" node tests/local-supabase/studentapp-runtime.mjs
+      - name: SQL auth and isolation guard for active-session candidate
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/local-supabase/active-session-recovery.sql
+      - name: Validate active-session rollback transactionally
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/local-supabase/active-session-rollback.sql
+      - name: Dashboard transaction and isolation test
+        shell: bash
+        run: |
+          set -a
+          source /tmp/ens-supabase.env
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/local-supabase/dashboard-stability.sql
+      - name: Database lint must be clean
+        run: supabase db lint --local --level warning
+      - name: Stop isolated stack
+        if: always()
+        run: |
+          node scripts/remove-empty-db-bootstrap.mjs
+          supabase stop --no-backup

@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+coverage/
+.env
+.env.local
+.env.*.local
+.vercel/
+*.log
+.DS_Store
+.ens-lan-admin.json\n.ens-lan-initialized\n

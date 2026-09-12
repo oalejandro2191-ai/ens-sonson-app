@@ -1,1 +1,12 @@
-{"cleanUrls":true,"headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}]}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "NEXT_PUBLIC_SUPABASE_URL='https://ddtdcjohzhjqunuajcod.supabase.co' NEXT_PUBLIC_SUPABASE_ANON_KEY='sb_publishable_-ejRonjXHjOkTZaM5Rhp9A_aYGk7QGu' NEXT_PUBLIC_APP_ENV='staging' NEXT_PUBLIC_ACADEMIC_DATA_MODE='backend' NEXT_PUBLIC_ENS_ROUTE_CODE='A1-V3' NEXT_PUBLIC_APP_VERSION='staging-alpha' npm run build",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://ddtdcjohzhjqunuajcod.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-ejRonjXHjOkTZaM5Rhp9A_aYGk7QGu",
+    "NEXT_PUBLIC_APP_ENV": "staging",
+    "NEXT_PUBLIC_ACADEMIC_DATA_MODE": "backend",
+    "NEXT_PUBLIC_ENS_ROUTE_CODE": "A1-V3",
+    "NEXT_PUBLIC_APP_VERSION": "staging-alpha"
+  }
+}
