@@ -39,6 +39,16 @@ jobs:
           ENS_LAN_IP: 127.0.0.1
           ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
         run: npm run lan:prepare
+      - name: Verify source administrator membership before backup
+        shell: bash
+        run: |
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          test -n "$DB_CONTAINER"
+          PRE_MEMBERSHIP_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
+          TOTAL_PRIVATE_MEMBERSHIPS=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships;")
+          echo "source_admin_membership_count=$PRE_MEMBERSHIP_COUNT"
+          echo "source_total_private_memberships=$TOTAL_PRIVATE_MEMBERSHIPS"
+          test "$PRE_MEMBERSHIP_COUNT" = "1"
       - name: Write sentinel classroom state
         shell: bash
         run: |
@@ -57,6 +67,14 @@ jobs:
           test -s "$BACKUP_PATH"
           test -s "$BACKUP_PATH.json"
           echo "path=$BACKUP_PATH" >> "$GITHUB_OUTPUT"
+      - name: Verify private membership is present in backup archive
+        shell: bash
+        run: |
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          test -n "$DB_CONTAINER"
+          docker exec -i "$DB_CONTAINER" pg_restore --list < "${{ steps.backup.outputs.path }}" > /tmp/ens-backup-list.txt
+          grep -F "private institution_memberships TABLE DATA" /tmp/ens-backup-list.txt
+          echo "backup_contains_institution_memberships=yes"
       - name: Deliberately mutate state after backup
         shell: bash
         run: |
@@ -75,9 +93,13 @@ jobs:
           VALUE=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select municipality from public.schools where id='11111111-1111-1111-1111-111111111111';")
           ADMIN_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from auth.users where email='admin@ens.local';")
           MEMBERSHIP_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
+          TOTAL_MEMBERSHIP_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships;")
+          ROLE_STATUS_COUNTS=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select role||':'||status||':'||count(*) from private.institution_memberships group by role,status order by role,status;")
           echo "restored_municipality=$VALUE"
           echo "restored_admin_count=$ADMIN_COUNT"
           echo "restored_membership_count=$MEMBERSHIP_COUNT"
+          echo "restored_total_memberships=$TOTAL_MEMBERSHIP_COUNT"
+          echo "restored_role_status_counts=$ROLE_STATUS_COUNTS"
           test "$VALUE" = "BACKUP-SENTINEL"
           test "$ADMIN_COUNT" = "1"
           test "$MEMBERSHIP_COUNT" = "1"
