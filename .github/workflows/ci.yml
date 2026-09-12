@@ -29,6 +29,8 @@ jobs:
           fi
       - name: Install reproducibly
         run: npm ci
+      - name: Dependency security gate
+        run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
