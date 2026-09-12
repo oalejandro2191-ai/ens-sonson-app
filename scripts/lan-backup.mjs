@@ -91,7 +91,7 @@ export function createBackup({ label = "classroom" } = {}) {
     "exec", container,
     "pg_dump", "-U", "postgres", "-d", "postgres",
     "--format=custom", "--data-only", "--no-owner", "--no-privileges",
-    "--schema=public", "--schema=private",
+    "--table=public.*", "--table=private.*",
     "--table=auth.users", "--table=auth.identities",
   ];
   const result = run("docker", args, { capture: true, binary: true });
