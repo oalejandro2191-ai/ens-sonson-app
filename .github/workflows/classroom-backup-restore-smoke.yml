@@ -1,0 +1,92 @@
+name: Classroom Backup Restore Smoke
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - "scripts/lan-backup.mjs"
+      - "scripts/lan-classroom.mjs"
+      - "supabase/**"
+      - "tests/lan-backup.test.mjs"
+      - "package.json"
+      - ".github/workflows/classroom-backup-restore-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENS_DB_TARGET: local-empty
+
+jobs:
+  backup-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Run backup guard unit tests
+        run: node --test tests/lan-backup.test.mjs
+      - name: Prepare isolated classroom LAN database
+        env:
+          ENS_LAN_IP: 127.0.0.1
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
+        run: npm run lan:prepare
+      - name: Write sentinel classroom state
+        shell: bash
+        run: |
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          test -n "$DB_CONTAINER"
+          docker exec "$DB_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "update public.schools set municipality='BACKUP-SENTINEL' where id='11111111-1111-1111-1111-111111111111';"
+          VALUE=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select municipality from public.schools where id='11111111-1111-1111-1111-111111111111';")
+          test "$VALUE" = "BACKUP-SENTINEL"
+      - name: Create classroom backup
+        id: backup
+        shell: bash
+        run: |
+          npm run -s lan:backup | tee /tmp/ens-backup.log
+          BACKUP_PATH=$(sed -n 's/^BACKUP_PATH=//p' /tmp/ens-backup.log | tail -n1)
+          test -n "$BACKUP_PATH"
+          test -s "$BACKUP_PATH"
+          test -s "$BACKUP_PATH.json"
+          echo "path=$BACKUP_PATH" >> "$GITHUB_OUTPUT"
+      - name: Deliberately mutate state after backup
+        shell: bash
+        run: |
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          docker exec "$DB_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "update public.schools set municipality='MUTATED-AFTER-BACKUP' where id='11111111-1111-1111-1111-111111111111';"
+          VALUE=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select municipality from public.schools where id='11111111-1111-1111-1111-111111111111';")
+          test "$VALUE" = "MUTATED-AFTER-BACKUP"
+      - name: Restore classroom backup
+        shell: bash
+        run: npm run -s lan:restore -- "${{ steps.backup.outputs.path }}" --confirm-restore
+      - name: Verify restored state and local administrator
+        shell: bash
+        run: |
+          DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
+          test -n "$DB_CONTAINER"
+          VALUE=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select municipality from public.schools where id='11111111-1111-1111-1111-111111111111';")
+          test "$VALUE" = "BACKUP-SENTINEL"
+          ADMIN_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from auth.users where email='admin@ens.local';")
+          test "$ADMIN_COUNT" = "1"
+          MEMBERSHIP_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
+          test "$MEMBERSHIP_COUNT" = "1"
+      - name: Verify LAN prepare remains non-destructive after restore
+        env:
+          ENS_LAN_IP: 127.0.0.1
+          ENS_LAN_SUPPRESS_CREDENTIAL_OUTPUT: "1"
+        run: npm run lan:prepare
+      - name: Cleanup isolated classroom stack
+        if: always()
+        shell: bash
+        run: |
+          rm -rf backups .ens-lan-admin.json .ens-lan-initialized
+          node scripts/remove-empty-db-bootstrap.mjs || true
+          supabase stop --no-backup || true
