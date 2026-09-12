@@ -161,7 +161,7 @@ export function restoreBackup(dumpPath, { confirmed = false } = {}) {
   const result = run("docker", [
     "exec", "-i", container,
     "pg_restore", "-U", "postgres", "-d", "postgres",
-    "--data-only", "--disable-triggers", "--no-owner", "--no-privileges", "--exit-on-error",
+    "--data-only", "--no-owner", "--no-privileges", "--exit-on-error",
   ], { capture: true, input: dumpBuffer });
   if (result.status !== 0) throw new Error("pg_restore failed unexpectedly.");
 
