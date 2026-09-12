@@ -53,7 +53,34 @@ Admin URL:   http://192.168.1.20:3000/admin
 
 `lan:start` **no reinicia la base de datos**. El progreso se conserva en los volúmenes Docker del computador.
 
-Solo use esto si desea borrar el entorno local y reconstruirlo:
+Antes de jornadas importantes o de cualquier mantenimiento, cree un respaldo lógico:
+
+```bash
+npm run lan:backup
+```
+
+El comando crea dentro de `backups/`:
+
+- un archivo `.dump` con el estado de las tablas académicas e institucionales y las cuentas Auth locales;
+- un manifiesto `.json` con fecha, tamaño y SHA-256 para detectar archivos dañados.
+
+La carpeta `backups/` y `.ens-lan-admin.json` están excluidos de Git. Trate ambos como información privada del piloto.
+
+### Restaurar un respaldo
+
+La restauración es destructiva y exige confirmación explícita:
+
+```bash
+npm run lan:restore -- backups/ens-lan-classroom-AAAA-MM-DD....dump --confirm-restore
+```
+
+Antes de tocar la base, el comando crea automáticamente otro respaldo con la etiqueta `pre-restore`. Después reconstruye el esquema local validado y restaura los datos. También genera un recibo `.restored.json` con la huella del respaldo usado.
+
+El restore solo acepta archivos dentro de la carpeta local `backups/` y solo opera sobre el contenedor `supabase_db_ens-sonson-local`.
+
+> El respaldo cubre el estado de base de datos y Auth local. Los archivos del código y contenidos versionados continúan protegidos por Git. Si en el futuro se almacenan archivos binarios subidos por usuarios en Supabase Storage local, deberá añadirse una copia específica del volumen de objetos antes de considerar esos archivos cubiertos por este mecanismo.
+
+Solo use esto si desea borrar el entorno local y reconstruirlo desde los fixtures, sin restaurar un respaldo:
 
 ```bash
 npm run lan:reset

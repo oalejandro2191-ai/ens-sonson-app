@@ -8,4 +8,6 @@ coverage/
 .vercel/
 *.log
 .DS_Store
-.ens-lan-admin.json\n.ens-lan-initialized\n
+.ens-lan-admin.json
+.ens-lan-initialized
+backups/
