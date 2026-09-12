@@ -15,7 +15,9 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
     "lan:prepare": "node scripts/lan-classroom.mjs --prepare-only",
     "lan:start": "node scripts/lan-classroom.mjs",
-    "lan:reset": "node scripts/lan-classroom.mjs --prepare-only --reset"
+    "lan:reset": "node scripts/lan-classroom.mjs --prepare-only --reset",
+    "lan:backup": "node scripts/lan-backup.mjs backup",
+    "lan:restore": "node scripts/lan-backup.mjs restore"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.4",
