@@ -73,10 +73,13 @@ jobs:
           DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_ens-sonson-local$' | head -n1)
           test -n "$DB_CONTAINER"
           VALUE=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select municipality from public.schools where id='11111111-1111-1111-1111-111111111111';")
-          test "$VALUE" = "BACKUP-SENTINEL"
           ADMIN_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from auth.users where email='admin@ens.local';")
-          test "$ADMIN_COUNT" = "1"
           MEMBERSHIP_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -Atc "select count(*) from private.institution_memberships m join auth.users u on u.id=m.user_id where u.email='admin@ens.local' and m.role='institution_admin' and m.status='active';")
+          echo "restored_municipality=$VALUE"
+          echo "restored_admin_count=$ADMIN_COUNT"
+          echo "restored_membership_count=$MEMBERSHIP_COUNT"
+          test "$VALUE" = "BACKUP-SENTINEL"
+          test "$ADMIN_COUNT" = "1"
           test "$MEMBERSHIP_COUNT" = "1"
       - name: Verify LAN prepare remains non-destructive after restore
         env:
