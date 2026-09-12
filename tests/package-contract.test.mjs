@@ -8,6 +8,12 @@ test("canonical runtime versions are pinned", () => {
   assert.equal(pkg.dependencies["react-dom"], "19.2.0");
   assert.equal(pkg.devDependencies["eslint-config-next"], "16.3.3");
 });
-test("required validation scripts exist", () => {
-  for (const script of ["typecheck", "lint", "test", "build", "check"]) assert.ok(pkg.scripts[script]);
+test("secure transitive overrides are pinned", () => {
+  assert.equal(pkg.overrides["js-yaml"], "4.3.2");
+  assert.equal(pkg.overrides.sharp, "0.35.4");
+});
+test("required validation and classroom safety scripts exist", () => {
+  for (const script of ["typecheck", "lint", "test", "build", "check", "lan:prepare", "lan:start", "lan:backup", "lan:restore"]) {
+    assert.ok(pkg.scripts[script]);
+  }
 });
